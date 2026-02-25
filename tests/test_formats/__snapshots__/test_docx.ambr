@@ -1,0 +1,55 @@
+# serializer version: 1
+# name: TestDocxSnapshots.test_simple
+  '''
+  ---
+  author: python-docx
+  pages: 1
+  format: docx
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  This is a simple document with one paragraph of text.
+  '''
+# ---
+# name: TestDocxSnapshots.test_with_formatting
+  '''
+  ---
+  author: python-docx
+  pages: 1
+  format: docx
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  # Main Title
+  
+  ## Section One
+  
+  This paragraph has **bold text** and *italic text* in it.
+  
+  ## Section Two
+  
+  First item
+  
+  Second item
+  
+  Third item
+  '''
+# ---
+# name: TestDocxSnapshots.test_with_table
+  '''
+  ---
+  author: python-docx
+  pages: 1
+  format: docx
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  # Employee Directory
+  
+  | Name  | Department  | Role      |
+  | ----- | ----------- | --------- |
+  | Alice | Engineering | Developer |
+  | Bob   | Marketing   | Designer  |
+  | Carol | Engineering | Manager   |
+  '''
+# ---

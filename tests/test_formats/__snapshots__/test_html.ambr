@@ -1,0 +1,53 @@
+# serializer version: 1
+# name: TestHtmlSnapshots.test_simple
+  '''
+  ---
+  title: Simple Page
+  format: html
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  ---
+  title: Simple Page
+  ---
+  
+  
+  # Welcome
+  
+  This is a simple HTML page with a heading and paragraph.
+  
+  '''
+# ---
+# name: TestHtmlSnapshots.test_with_table
+  '''
+  ---
+  title: Table Page
+  format: html
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  ---
+  title: Table Page
+  ---
+  
+  
+  # Data Report
+  
+  ## Summary
+  
+  Below is the quarterly data.
+  
+  | Quarter | Revenue | Growth |
+  | --- | --- | --- |
+  | Q1 | $100K | 5% |
+  | Q2 | $120K | 20% |
+  | Q3 | $115K | -4% |
+  
+  
+  ## Links
+  
+  - [Example Site](https://example.com)
+  - [Another Site](https://example.org)
+  
+  '''
+# ---

@@ -1,0 +1,29 @@
+# serializer version: 1
+# name: TestPptxSnapshots.test_multi_slide
+  '''
+  ---
+  format: pptx
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  # Project Overview
+  # Q1 2026 Update
+  
+  ### Notes:
+  Remember to highlight the growth trend.
+  # Key Metrics
+  # Revenue increased by 15% year over year.# Next Steps
+  # Focus on customer retention and expansion.
+  '''
+# ---
+# name: TestPptxSnapshots.test_simple
+  '''
+  ---
+  format: pptx
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  # Welcome Slide
+  # This is the body text of the presentation.
+  '''
+# ---

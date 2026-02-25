@@ -1,0 +1,40 @@
+# serializer version: 1
+# name: TestXlsxSnapshots.test_multi_sheet
+  '''
+  ---
+  format: excel
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  ## Sales
+  
+  | Month | Revenue | Units |
+  | --- | --- | --- |
+  | January | 10000.0 | 150.0 |
+  | February | 12000.0 | 180.0 |
+  
+  ## Expenses
+  
+  | Category | Amount |
+  | --- | --- |
+  | Rent | 3000.0 |
+  | Utilities | 500.0 |
+  | Supplies | 750.0 |
+  '''
+# ---
+# name: TestXlsxSnapshots.test_simple
+  '''
+  ---
+  format: excel
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  ## Data
+  
+  | Product | Price | Quantity |
+  | --- | --- | --- |
+  | Widget | 9.99 | 100.0 |
+  | Gadget | 24.99 | 50.0 |
+  | Doohickey | 4.99 | 200.0 |
+  '''
+# ---
