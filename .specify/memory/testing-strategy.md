@@ -47,16 +47,17 @@ Every supported format converts a representative sample file without errors.
 ### 4. CLI Tests
 
 - Argument parsing (input file, -o flag, smart flags)
-- Exit codes (0 success, 1 error, 2 unsupported format)
+- Exit codes (0 success, 1 error, 2 unsupported format, 3 output exists)
 - Error messages (clear, actionable)
 - Output file creation (correct path, correct content)
 
 ### 5. Pipeline Tests
 
-- Registry correctly selects converter by extension
-- Pipeline stages (parse -> normalize -> render) work independently
-- Intermediate representation is well-formed
-- Renderer produces valid Markdown
+- Kreuzberg adapter returns content and metadata for supported formats
+- Frontmatter is composed correctly from extraction metadata
+- Pipeline orchestrates extract -> frontmatter -> assemble -> write correctly
+- Output file path resolution works for all cases (default, -o file, -o directory)
+- Overwrite protection errors when output exists without --force
 
 ## Test Fixtures
 
@@ -143,8 +144,8 @@ No drift. Ever.
 # All tests
 uv run pytest
 
-# Specific format
-uv run pytest tests/test_converters/test_pdf.py
+# Specific module
+uv run pytest tests/test_pipeline.py
 
 # With coverage
 uv run pytest --cov=to_markdown

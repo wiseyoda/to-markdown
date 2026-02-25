@@ -92,8 +92,9 @@ Input File -> Kreuzberg extract (via adapter) -> content + metadata
 ### Frontmatter Composition
 
 YAML frontmatter is composed from Kreuzberg's structured metadata object:
-- Document metadata: title, author, creation date, page count, format
-- Extraction metadata: extraction date, Kreuzberg version, OCR used
+- Document metadata: title, author, created, pages, format, words
+- Extraction metadata: extracted_at
+- Only include fields that have values (skip None/empty)
 - Structured as YAML between `---` delimiters at the top of the .md file
 
 ### No Magic Numbers - Single Constants File
