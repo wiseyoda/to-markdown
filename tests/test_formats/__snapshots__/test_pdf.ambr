@@ -1,0 +1,43 @@
+# serializer version: 1
+# name: TestPdfSnapshots.test_simple
+  '''
+  ---
+  pages: 1
+  format: pdf
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  Hello World. This is a simple PDF document.
+  '''
+# ---
+# name: TestPdfSnapshots.test_with_headings
+  '''
+  ---
+  pages: 2
+  format: pdf
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  is is the first chapter of the document. It contains introductory material about the topic.
+  
+  The second chapter continues with more detailed analysis. It builds on concepts from the firstchapter.
+  '''
+# ---
+# name: TestPdfSnapshots.test_with_table
+  '''
+  ---
+  pages: 1
+  format: pdf
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  | Table Example |  |  |
+  | --- | --- | --- |
+  | Name | Age | City |
+  | Alice | 30 | New York |
+  | Bob | 25 | London |
+  | Carol | 35 | Tokyo |
+  
+  Name Age City Alice 30 New York Bob 25 London Carol 35 Tokyo
+  '''
+# ---

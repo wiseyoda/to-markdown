@@ -1,0 +1,21 @@
+# serializer version: 1
+# name: TestImageSnapshots.test_jpg_simple
+  '''
+  ---
+  format: image
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  Image: JPEG 200x100
+  '''
+# ---
+# name: TestImageSnapshots.test_png_simple
+  '''
+  ---
+  format: image
+  extracted_at: '2025-01-01T00:00:00Z'
+  ---
+  
+  Image: PNG 200x100
+  '''
+# ---
