@@ -1,6 +1,6 @@
 # to-markdown
 
-CLI file-to-Markdown converter optimized for LLM consumption. Python 3.12+, uv, Typer, ruff, pytest.
+CLI file-to-Markdown converter optimized for LLM consumption. Python 3.14+, uv, Typer, ruff, pytest.
 
 ## Rules
 
@@ -41,8 +41,8 @@ uv run ruff format --check      # format check
 
 ## Architecture
 
-Plugin registry + pipeline: parse -> normalize -> render. Each format is one converter
-module in `src/to_markdown/converters/`. See coding-standards.md for details.
+Kreuzberg wrapper pipeline: extract -> compose frontmatter -> assemble -> write output.
+Core modules in `src/to_markdown/core/`. See coding-standards.md for details.
 
 ## Commit Style
 

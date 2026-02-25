@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-25T18:37:35.637Z",
+  "last_updated": "2026-02-25T19:03:14.294Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,21 +14,23 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "Research core tooling (Python, uv, Typer, ruff, pytest)",
-        "Research per-format libraries (HTML, PDF, DOCX, PPTX, XLSX, OCR/images)",
-        "Research LLM integration (Gemini SDK, alternatives)",
-        "Human confirmation on all selections",
-        "Update tech-stack.md with confirmed versions and libraries",
-        "Update future phase files with specific library names",
-        "Update decisions.md with new decisions"
+        "Build complete to-markdown CLI wrapping Kreuzberg for extraction",
+        "Compose YAML frontmatter from Kreuzberg metadata",
+        "Project setup: pyproject.toml, ruff, pytest, syrupy",
+        "Kreuzberg adapter (core/extraction.py) with error handling",
+        "Frontmatter composition (core/frontmatter.py)",
+        "Pipeline: extract -> frontmatter -> assemble -> output",
+        "Typer CLI with --version, --verbose, --quiet, --force, -o flags",
+        "Proper exit codes (0 success, 1 error, 2 unsupported, 3 already exists)",
+        "Baseline tests for extraction, frontmatter, pipeline, CLI"
       ],
-      "hasUserGate": true,
+      "hasUserGate": false,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: All library selections confirmed, research docs committed, governance updated"
+      "userGateCriteria": "`to-markdown test.txt` produces valid .md with frontmatter; `ruff check` + `pytest` pass"
     },
     "next_phase": {
-      "number": "0020",
-      "name": "Core CLI & Pipeline"
+      "number": "0030",
+      "name": "Format Quality & Testing"
     },
     "step": {
       "current": "design",
@@ -66,9 +68,6 @@
     "last_check": "2026-02-25T15:38:01.932Z",
     "issues": []
   },
-  "interview": {
-    "status": "complete"
-  },
   "actions": {
     "history": [
       {
@@ -79,7 +78,19 @@
         "completed_at": "2026-02-25T18:37:35.637Z",
         "tasks_completed": 0,
         "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0020",
+        "phase_name": "Core CLI & Pipeline",
+        "branch": "0020-core-cli-pipeline",
+        "completed_at": "2026-02-25T19:03:14.293Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
       }
     ]
+  },
+  "interview": {
+    "status": "complete"
   }
 }
