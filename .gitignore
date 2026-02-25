@@ -6,10 +6,8 @@
 credentials.*
 secrets.*
 
-# SpecFlow / Specify (governance docs - not shipped)
-.specflow/
-.specify/
-specs/
+# SpecFlow runtime state
+.specflow/workflows/
 
 # Python
 __pycache__/

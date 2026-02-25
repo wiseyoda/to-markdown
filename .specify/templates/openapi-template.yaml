@@ -1,0 +1,185 @@
+# OpenAPI Template
+# version: 1.0
+# Purpose: Starter template for new API endpoint specifications
+#
+# Usage:
+#   1. Copy this file to specs/[feature]/contracts/[feature].yaml
+#   2. Replace placeholder values with actual endpoint definitions
+#   3. Replace [RESOURCE] with your resource name (e.g., User, Order)
+
+openapi: 3.1.0
+info:
+  title: [PROJECT_NAME] - [Feature] API
+  version: 1.0.0
+
+paths:
+  /api/[resources]:
+    get:
+      operationId: list[Resources]
+      summary: List all [resources]
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, archived]
+      responses:
+        '200':
+          description: [Resources] retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/[Resource]ListResponse'
+
+    post:
+      operationId: create[Resource]
+      summary: Create a new [resource]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Create[Resource]Request'
+      responses:
+        '201':
+          description: [Resource] created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/[Resource]Response'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/[resources]/{[resourceId]}:
+    get:
+      operationId: get[Resource]
+      summary: Get [resource] by ID
+      parameters:
+        - $ref: '#/components/parameters/[Resource]IdParam'
+      responses:
+        '200':
+          description: [Resource] retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/[Resource]Response'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  parameters:
+    '[Resource]IdParam':
+      name: '[resourceId]'
+      in: path
+      required: true
+      schema:
+        type: string
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  schemas:
+    '[Resource]':
+      type: object
+      required: [id, name, status, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive, archived]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    'Create[Resource]Request':
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 500
+
+    '[Resource]Response':
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/[Resource]'
+
+    '[Resource]ListResponse':
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/[Resource]'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

@@ -1,0 +1,47 @@
+{
+  "schema_version": "3.0",
+  "project": {
+    "id": "4a472c4a-ed36-49d4-9eb4-c2c8487c53f1",
+    "name": "to-markdown",
+    "path": "/Users/ppatterson/dev/to-markdown"
+  },
+  "last_updated": "2026-02-25T16:32:07.730Z",
+  "orchestration": {
+    "phase": {
+      "id": null,
+      "number": null,
+      "name": null,
+      "branch": null,
+      "status": "not_started"
+    },
+    "next_phase": null,
+    "step": {
+      "current": "design",
+      "index": 0,
+      "status": "not_started"
+    },
+    "implement": null,
+    "dashboard": {
+      "active": null,
+      "batches": {
+        "total": 0,
+        "current": 0,
+        "items": []
+      },
+      "cost": {
+        "total": 0,
+        "perBatch": []
+      },
+      "decisionLog": [],
+      "lastWorkflow": null
+    }
+  },
+  "health": {
+    "status": "initializing",
+    "last_check": "2026-02-25T15:38:01.932Z",
+    "issues": []
+  },
+  "interview": {
+    "status": "complete"
+  }
+}
