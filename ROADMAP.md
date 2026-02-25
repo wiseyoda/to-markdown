@@ -10,6 +10,16 @@
 
 ---
 
+## Architecture
+
+to-markdown wraps [Kreuzberg](https://github.com/Goldziher/kreuzberg) (Rust-based extraction
+for 76+ formats) with an LLM-optimized output layer. See D-34 for rationale.
+
+**Our value-add**: YAML frontmatter, magic defaults, `--summary`/`--images` via Gemini,
+golden file quality testing, and a polished Typer CLI.
+
+---
+
 ## Phase Numbering
 
 Phases use **ABBC** format:
@@ -32,16 +42,11 @@ This allows inserting urgent work without renumbering existing phases.
 
 | Phase | Name | Status | Verification Gate |
 | ----- | ---- | ------ | ----------------- |
-| 0010 | Research & Tooling | ⬜ Not Started | **USER GATE**: All library selections confirmed, research docs committed, governance updated |
-| 0020 | Core Pipeline | ⬜ Not Started | `to-markdown test.txt` produces valid .md with frontmatter; `ruff check` + `pytest` pass |
-| 0025 | HTML Converter | ⬜ Not Started | HTML produces clean Markdown; full pipeline validated end-to-end |
-| 0030 | PDF Converter | ⬜ Not Started | **USER GATE**: PDF conversion produces complete, well-structured Markdown |
-| 0040 | DOCX Converter | ⬜ Not Started | **USER GATE**: DOCX conversion produces complete, well-structured Markdown |
-| 0050 | PPTX Converter | ⬜ Not Started | **USER GATE**: PPTX conversion produces complete, well-structured Markdown |
-| 0060 | XLSX Converter | ⬜ Not Started | XLSX produces accurate Markdown tables; all tests pass |
-| 0070 | Image & OCR | ⬜ Not Started | **USER GATE**: Image/OCR conversion produces accurate text extraction |
-| 0080 | Smart Features | ⬜ Not Started | **USER GATE**: LLM-powered --summary and --images flags work correctly |
-| 0090 | Batch Processing | ⬜ Not Started | Directory conversion with mixed formats; progress reporting; all tests pass |
+| 0010 | Research & Tooling | ✅ Complete | **USER GATE**: All selections confirmed, research docs committed, governance updated |
+| 0020 | Core CLI & Pipeline | ⬜ Not Started | `to-markdown test.txt` produces valid .md with frontmatter; `ruff check` + `pytest` pass |
+| 0030 | Format Quality & Testing | ⬜ Not Started | **USER GATE**: Golden file tests pass for PDF, DOCX, PPTX, XLSX, HTML, images |
+| 0040 | Smart Features | ⬜ Not Started | **USER GATE**: `--summary` and `--images` flags work correctly with Gemini |
+| 0050 | Batch Processing | ⬜ Not Started | Directory conversion with mixed formats; progress reporting; all tests pass |
 
 **Legend**: ⬜ Not Started | 🔄 In Progress | ✅ Complete | **USER GATE** = Requires user verification
 

@@ -5,22 +5,46 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-25T16:32:07.730Z",
+  "last_updated": "2026-02-25T18:37:35.637Z",
   "orchestration": {
     "phase": {
       "id": null,
       "number": null,
       "name": null,
       "branch": null,
-      "status": "not_started"
+      "status": "not_started",
+      "goals": [
+        "Research core tooling (Python, uv, Typer, ruff, pytest)",
+        "Research per-format libraries (HTML, PDF, DOCX, PPTX, XLSX, OCR/images)",
+        "Research LLM integration (Gemini SDK, alternatives)",
+        "Human confirmation on all selections",
+        "Update tech-stack.md with confirmed versions and libraries",
+        "Update future phase files with specific library names",
+        "Update decisions.md with new decisions"
+      ],
+      "hasUserGate": true,
+      "userGateStatus": "confirmed",
+      "userGateCriteria": "**USER GATE**: All library selections confirmed, research docs committed, governance updated"
     },
-    "next_phase": null,
+    "next_phase": {
+      "number": "0020",
+      "name": "Core CLI & Pipeline"
+    },
     "step": {
       "current": "design",
       "index": 0,
       "status": "not_started"
     },
+    "analyze": {
+      "iteration": 1,
+      "completedAt": 1772044159
+    },
     "implement": null,
+    "progress": {
+      "tasks_completed": 0,
+      "tasks_total": 0,
+      "percentage": 0
+    },
     "dashboard": {
       "active": null,
       "batches": {
@@ -34,7 +58,8 @@
       },
       "decisionLog": [],
       "lastWorkflow": null
-    }
+    },
+    "steps": {}
   },
   "health": {
     "status": "initializing",
@@ -43,5 +68,18 @@
   },
   "interview": {
     "status": "complete"
+  },
+  "actions": {
+    "history": [
+      {
+        "type": "phase_completed",
+        "phase_number": "0010",
+        "phase_name": "Research & Tooling",
+        "branch": "0010-research-tooling",
+        "completed_at": "2026-02-25T18:37:35.637Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      }
+    ]
   }
 }
