@@ -21,23 +21,14 @@ to-markdown/
       cli.py              # Typer CLI entry point
       core/
         __init__.py
-        pipeline.py        # Parse -> Normalize -> Render pipeline
-        registry.py        # Format plugin registry
-        models.py          # Intermediate representation (IR) types
-        renderer.py        # IR -> Markdown rendering
+        extraction.py      # Kreuzberg adapter interface
+        frontmatter.py     # YAML frontmatter composition from metadata
+        pipeline.py        # Kreuzberg extract -> frontmatter -> LLM -> output
         constants.py       # ALL project constants (single source of truth)
-      converters/          # One module per format
+      smart/               # LLM-powered features (optional)
         __init__.py
-        pdf.py
-        docx.py
-        pptx.py
-        xlsx.py
-        image.py
-        html.py
-      smart/               # LLM-powered features
-        __init__.py
-        summary.py
-        images.py
+        summary.py         # --summary flag: Gemini document summarization
+        images.py          # --images flag: Gemini vision image description
         llm.py             # Gemini client wrapper
   tests/
     fixtures/              # Test input files per format
@@ -45,19 +36,20 @@ to-markdown/
       docx/
       pptx/
       xlsx/
+      html/
       images/
-    golden/                # Expected output .md files
-      pdf/
-      docx/
-      pptx/
-      xlsx/
-      images/
+    __snapshots__/         # syrupy golden file snapshots
     test_cli.py
+    test_extraction.py     # Kreuzberg adapter tests
+    test_frontmatter.py
     test_pipeline.py
-    test_converters/
+    test_formats/          # Per-format quality tests
       test_pdf.py
       test_docx.py
-      ...
+      test_pptx.py
+      test_xlsx.py
+      test_html.py
+      test_images.py
   pyproject.toml
   .env.example
   .gitignore
@@ -65,35 +57,44 @@ to-markdown/
 
 ## Patterns
 
-### Plugin Registration
+### Kreuzberg Adapter
 
-Each converter registers itself with the central registry:
+All document extraction goes through the Kreuzberg adapter (`core/extraction.py`).
+This isolates the project from Kreuzberg API changes.
 
 ```python
-from to_markdown.core.registry import register
+# core/extraction.py - thin adapter around Kreuzberg
+from kreuzberg import extract_file_sync, ExtractionConfig
 
-@register(extensions=[".pdf"], mime_types=["application/pdf"])
-class PdfConverter:
-    def parse(self, file_path: Path) -> Document:
-        ...
+def extract(file_path: Path) -> ExtractionResult:
+    """Extract content and metadata from a file via Kreuzberg."""
+    result = extract_file_sync(str(file_path), config=ExtractionConfig(
+        output_format="markdown",
+        enable_quality_processing=True,
+    ))
+    return ExtractionResult(
+        content=result.content,
+        metadata=result.metadata,
+        tables=result.tables,
+    )
 ```
 
 ### Pipeline Flow
 
 ```
-Input File -> Registry (select converter by extension/MIME)
-           -> Converter.parse() -> Document IR
-           -> Normalizer.normalize() -> Normalized Document
-           -> Renderer.render() -> Markdown string
-           -> Output (write .md file with frontmatter)
+Input File -> Kreuzberg extract (via adapter) -> content + metadata
+           -> Compose YAML frontmatter from metadata
+           -> Optionally apply LLM features (--summary, --images)
+           -> Assemble final .md (frontmatter + content)
+           -> Write output file
 ```
 
-### Intermediate Representation
+### Frontmatter Composition
 
-The Document IR is the shared data model between parse and render:
-- Document metadata (title, author, dates, page count, etc.)
-- Ordered list of content blocks (headings, paragraphs, tables, code, images)
-- Each block has a type, content, and optional attributes
+YAML frontmatter is composed from Kreuzberg's structured metadata object:
+- Document metadata: title, author, creation date, page count, format
+- Extraction metadata: extraction date, Kreuzberg version, OCR used
+- Structured as YAML between `---` delimiters at the top of the .md file
 
 ### No Magic Numbers - Single Constants File
 
@@ -132,7 +133,7 @@ OCR_TIMEOUT_SECONDS = 60
 DEFAULT_OUTPUT_EXTENSION = ".md"
 
 # --- LLM ---
-GEMINI_MODEL_NAME = "gemini-3.0-flash"
+GEMINI_MODEL_NAME = "gemini-2.5-flash"
 MAX_SUMMARY_TOKENS = 500
 ```
 
@@ -233,4 +234,4 @@ Code and docs must never drift. When any change affects behavior:
 - All doc updates go in the same commit as the code change
 
 ---
-*Version: 1.2.0 | Last Updated: 2026-02-25*
+*Version: 2.0.0 | Last Updated: 2026-02-25*

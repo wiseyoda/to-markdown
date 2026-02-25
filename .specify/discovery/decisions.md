@@ -304,3 +304,73 @@
 - **Alternatives**: Print statements, no logging
 - **Consequences**: Requires logging setup in Phase 0020; Enables useful feedback without noise
 - **Memory Doc Impact**: coding-standards.md
+
+#### D-31: Python Version Update
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Python 3.14.3 is latest stable (Feb 2026). All core tools support 3.14.
+- **Decision**: Update minimum Python version from 3.12+ to 3.14+. Gets t-strings, deferred annotations, stable free-threading.
+- **Alternatives**: 3.12+ (conservative), 3.13+ (moderate)
+- **Consequences**: Narrower compatibility but access to latest features; All tools confirmed compatible
+- **Memory Doc Impact**: tech-stack.md, coding-standards.md
+
+#### D-32: Snapshot Testing Tool
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need golden file testing for converter output quality
+- **Decision**: syrupy 5.1.0+ for snapshot/golden file testing. Zero deps, MIT, .ambr files. Supports SingleFileSnapshotExtension for raw Markdown comparison.
+- **Alternatives**: pytest-snapshot (less active), custom comparison (more code), pytest-golden (YAML-based)
+- **Consequences**: Adds syrupy as dev dependency; Enables output quality verification
+- **Memory Doc Impact**: tech-stack.md, testing-strategy.md
+
+#### D-33: Coverage Reporting
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need coverage reporting for test suite
+- **Decision**: pytest-cov 7.0.0+ for coverage reporting. Standard, well-maintained.
+- **Alternatives**: coverage.py directly
+- **Consequences**: Adds pytest-cov as dev dependency
+- **Memory Doc Impact**: tech-stack.md
+
+#### D-34: Kreuzberg as Extraction Backend (ARCHITECTURAL PIVOT)
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Research discovered Kreuzberg (Rust core, 76+ formats, 91% F1 on PDFs) and MarkItDown (Microsoft, 87.5k stars). Both handle all target formats. Building per-format parsers from scratch would replicate existing production-quality work.
+- **Decision**: Adopt Kreuzberg 4.3.8+ as the extraction backend. Build to-markdown as a thin CLI wrapper (~500-800 lines) that adds YAML frontmatter, LLM features, golden file testing, and CLI UX on top of Kreuzberg's extraction.
+- **Alternatives**: MarkItDown (50-60% coverage, poor PDF tables, no OCR), per-format libraries (full control but 6+ phases of parser development), abandon project entirely
+- **Consequences**: Eliminates 6 per-format converter phases; Reduces codebase to wrapper layer; Depends on Kreuzberg API stability (mitigated by adapter interface); ROADMAP restructured from 10 phases to 5 phases
+- **Memory Doc Impact**: constitution.md (Principle III), coding-standards.md (project structure), tech-stack.md, ROADMAP.md, all phase files
+
+#### D-35: LLM Default Model
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Gemini 2.5 Flash is GA with free tier ($0.30/1M input). Gemini 3.0 Flash is still preview, no free tier ($0.50/1M input).
+- **Decision**: Default to Gemini 2.5 Flash (model ID: gemini-2.5-flash). Users can override via GEMINI_MODEL env var to use 3.0 Flash or future models.
+- **Alternatives**: Gemini 3.0 Flash default (better benchmarks but preview/costlier)
+- **Consequences**: Stable model ID, free tier access for testing, lower cost; google-genai SDK confirmed as only SDK needed
+- **Memory Doc Impact**: tech-stack.md, coding-standards.md (constants)
+
+#### D-36: LLM Dependencies as Optional Extras
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Core conversion must work offline. LLM features are opt-in.
+- **Decision**: google-genai and tenacity packaged as optional extras [llm]. Core install does not include LLM dependencies.
+- **Alternatives**: Include all deps by default
+- **Consequences**: Smaller default install; Users must install extras for --summary/--images
+- **Memory Doc Impact**: tech-stack.md
+
+#### D-37: ROADMAP Restructuring
+- **Phase**: 0010 - Research & Tooling
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Kreuzberg adoption eliminates need for 6 per-format converter phases.
+- **Decision**: Restructure ROADMAP from 10 phases to 5: Research & Tooling (0010), Core CLI & Pipeline (0020), Format Quality & Testing (0030), Smart Features (0040), Batch Processing (0050).
+- **Alternatives**: Keep original phases but simplify each
+- **Consequences**: Dramatically reduced project scope and timeline; Old phase files archived
+- **Memory Doc Impact**: ROADMAP.md, all phase files

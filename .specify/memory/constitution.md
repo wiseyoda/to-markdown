@@ -44,18 +44,20 @@ enhancements.
 **Rationale**: "Work like magic without a ton of flags." A great first-run experience is
 non-negotiable for a tool that targets developer workflows (D-16, D-6).
 
-### III. Extensible Format Architecture
+### III. Kreuzberg Wrapper Architecture
 
-New file formats can be added without modifying core logic. Each format is a self-contained
-converter plugin that feeds into shared normalization and Markdown rendering.
+Document extraction is delegated to Kreuzberg (Rust-based, 76+ formats). The to-markdown
+project wraps Kreuzberg with an LLM-optimized output layer.
 
-- Plugin registry pattern: formats register themselves with supported extensions/MIME types
-- Pipeline stages: parse -> normalize -> render (plugins implement parse only)
-- Well-defined intermediate representation between parse and render stages
-- Adding a new format means adding one module, no core changes
+- Kreuzberg handles all format parsing, OCR, and table extraction
+- to-markdown adds: YAML frontmatter (from Kreuzberg metadata), LLM features (--summary,
+  --images), CLI UX (Typer, --force, --verbose), and golden file quality testing
+- Kreuzberg is isolated behind an adapter interface (`core/extraction.py`) for API stability
+- Pipeline: Kreuzberg extract -> compose frontmatter -> apply LLM features -> output .md
 
-**Rationale**: The vision is a "universal translator to markdown." The architecture must scale
-to support virtually any format without accumulating complexity (D-10, D-17).
+**Rationale**: Kreuzberg provides production-quality extraction for 76+ formats with a Rust
+core (35+ files/sec, 91% F1 on PDFs). Building per-format parsers from scratch would replicate
+existing work. Our value is in the LLM-optimized wrapper layer (D-10, D-17, D-31).
 
 ### IV. Simplicity and Maintainability
 
@@ -181,4 +183,4 @@ When conflicts arise, Constitution principles take precedence.
 For day-to-day development guidance, code style details, and project-specific conventions,
 refer to the generated `CLAUDE.md` file at project root and feature-specific `plan.md` files.
 
-**Version**: 1.1.0 | **Ratified**: 2026-02-25 | **Last Amended**: 2026-02-25
+**Version**: 1.2.0 | **Ratified**: 2026-02-25 | **Last Amended**: 2026-02-25
