@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lvl": {
+      "command": "/Users/ppatterson/.local/bin/lvl",
+      "args": ["mcp"]
+    }
+  }
+}
