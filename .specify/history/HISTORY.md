@@ -4,6 +4,61 @@ This file contains summaries of completed phases, archived by `specflow phase cl
 
 ---
 
+## 0100 - MCP Server & AI Agent Skills
+
+**Completed**: 2026-02-26
+
+# Phase 0100: MCP Server & AI Agent Skills
+
+**Goal**: Build an MCP (Model Context Protocol) server and skill definitions so that
+Claude Code, Codex, Gemini, and other AI agents can invoke to-markdown programmatically
+without shell scripting.
+
+**Scope**:
+
+### 1. MCP Server
+- Implement an MCP server (`src/to_markdown/mcp/server.py`) using the MCP Python SDK
+- Expose tools: `convert_file`, `convert_batch`, `list_formats`, `get_status`
+- `convert_file` tool: accepts file path + options (force, clean, summary, images),
+  returns converted markdown content or output path
+- `convert_batch` tool: accepts directory/glob + options, returns batch result summary
+- `list_formats` tool: returns supported formats (from Kreuzberg)
+- `get_status` tool: returns version, available features (LLM configured or not)
+- Proper error responses with structured error codes
+- stdio transport (standard for local MCP servers)
+
+### 2. MCP Configuration Files
+- Generate `mcp.json` for Claude Code / Claude Desktop integration
+- Document configuration for Codex and Gemini agent setups
+- Include both "local development" and "installed" server configurations
+
+### 3. Agent-Friendly Output
+- MCP tool responses include structured metadata envelope (source path, format, stats)
+  alongside the markdown content - not just raw markdown
+- Large content returns are truncated with a pointer to the full output file
+- Batch results include per-file success/failure/skip details
+
+### 5. Tests
+- Test MCP server tool handlers with mock inputs
+- Test tool schema validation (correct parameters, types)
+- Test error handling (missing file, unsupported format, missing API key)
+- Stdout suppression verified (no library writes to stdout in MCP mode)
+
+**Deliverables**:
+- [ ] MCP server with convert_file, convert_batch, list_formats, get_status tools
+- [ ] stdio transport working for local usage
+- [ ] mcp.json configuration for Claude Code / Claude Desktop
+- [ ] Agent setup documentation for Codex and Gemini
+- [ ] Tests for all MCP tool handlers
+- [ ] README updated with MCP/agent integration section
+
+**Verification Gate**: **USER GATE** - Claude Code can invoke to-markdown via MCP
+tools. `convert_file` and `convert_batch` tools work from an AI agent session.
+
+**Estimated Complexity**: Medium-High
+
+---
+
 ## 0050 - Batch Processing
 
 **Completed**: 2026-02-26

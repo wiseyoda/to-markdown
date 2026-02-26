@@ -53,6 +53,57 @@ def convert_file(
         msg = f"Output file already exists: {resolved_output} (use --force to overwrite)"
         raise OutputExistsError(msg)
 
+    markdown = _build_content(input_path, clean=clean, summary=summary, images=images)
+
+    resolved_output.parent.mkdir(parents=True, exist_ok=True)
+    resolved_output.write_text(markdown, encoding="utf-8")
+    logger.info("Wrote: %s", resolved_output)
+
+    return resolved_output
+
+
+def convert_to_string(
+    input_path: Path,
+    *,
+    clean: bool = False,
+    summary: bool = False,
+    images: bool = False,
+) -> str:
+    """Convert a file to Markdown and return the content as a string.
+
+    Same pipeline as convert_file() but returns the markdown content directly
+    instead of writing to disk. Used by the MCP server.
+
+    Args:
+        input_path: Path to the source file.
+        clean: If True, clean extraction artifacts via LLM.
+        summary: If True, generate a summary section via LLM.
+        images: If True, describe images via LLM vision.
+
+    Returns:
+        Assembled markdown string with frontmatter and content.
+
+    Raises:
+        FileNotFoundError: If the input file does not exist.
+        UnsupportedFormatError: If the file format is not supported.
+        ExtractionError: If extraction fails.
+    """
+    input_path = Path(input_path).resolve()
+    if not input_path.exists():
+        msg = f"File not found: {input_path}"
+        raise FileNotFoundError(msg)
+
+    return _build_content(input_path, clean=clean, summary=summary, images=images)
+
+
+def _build_content(
+    input_path: Path,
+    *,
+    clean: bool = False,
+    summary: bool = False,
+    images: bool = False,
+) -> str:
+    """Build markdown content from a file: extract -> frontmatter -> smart features -> assemble."""
     logger.info("Extracting: %s", input_path.name)
     result = extract_file(input_path, extract_images=images)
 
@@ -95,11 +146,7 @@ def convert_file(
     if image_section:
         markdown += image_section
 
-    resolved_output.parent.mkdir(parents=True, exist_ok=True)
-    resolved_output.write_text(markdown, encoding="utf-8")
-    logger.info("Wrote: %s", resolved_output)
-
-    return resolved_output
+    return markdown
 
 
 def _resolve_output_path(input_path: Path, output_path: Path | None) -> Path:

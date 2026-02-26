@@ -103,49 +103,103 @@ Extracted document content in Markdown...
 | 3 | Output file already exists (use `--force`) |
 | 4 | Partial success (batch: some files succeeded, some failed) |
 
-## How to Test (Phase 0050: Batch Processing)
+## AI Agent Integration (MCP)
 
-1. Convert a directory of files:
-   ```bash
-   uv run to-markdown tests/fixtures/
-   ```
-   Expected: Creates .md files next to each fixture file. Progress bar shows during conversion.
+to-markdown includes an MCP (Model Context Protocol) server so AI agents can
+invoke file conversion programmatically.
 
-2. Convert with glob pattern:
-   ```bash
-   uv run to-markdown "tests/fixtures/pdf/*.pdf"
-   ```
-   Expected: Only PDF files are converted.
+### Available Tools
 
-3. Test output directory mirroring:
-   ```bash
-   uv run to-markdown tests/fixtures/ -o /tmp/md-output/
-   ```
-   Expected: Creates .md files in `/tmp/md-output/` mirroring the fixture directory structure.
+| Tool | Description |
+|------|-------------|
+| `convert_file` | Convert a single file to Markdown |
+| `convert_batch` | Convert all files in a directory |
+| `list_formats` | List supported file formats |
+| `get_status` | Check version and feature availability |
 
-4. Test non-recursive mode:
-   ```bash
-   uv run to-markdown tests/fixtures/ --no-recursive
-   ```
-   Expected: Only top-level files in `tests/fixtures/` are converted (no subdirectories).
+### Claude Code
 
-5. Test error handling:
-   ```bash
-   uv run to-markdown /tmp/empty-dir/
-   ```
-   Expected: "No supported files found" error message, exit code 1.
+Auto-detected via `.mcp.json` in this repo. Or add manually:
 
-6. Test quiet mode:
-   ```bash
-   uv run to-markdown tests/fixtures/ -q
-   ```
-   Expected: No progress bar or summary output.
+```bash
+claude mcp add to-markdown -- \
+  uv --directory /path/to/to-markdown run --extra mcp python -m to_markdown.mcp
+```
 
-7. Verify exit codes:
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "to-markdown": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/to-markdown", "run", "--extra", "mcp",
+               "python", "-m", "to_markdown.mcp"]
+    }
+  }
+}
+```
+
+### OpenAI Codex CLI
+
+Add to `.codex/config.toml` or `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.to-markdown]
+command = "uv"
+args = ["--directory", "/path/to/to-markdown", "run", "--extra", "mcp",
+        "python", "-m", "to_markdown.mcp"]
+```
+
+### Google Gemini CLI
+
+Add to `~/.gemini/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "to-markdown": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/to-markdown", "run", "--extra", "mcp",
+               "python", "-m", "to_markdown.mcp"]
+    }
+  }
+}
+```
+
+## How to Test (Phase 0100: MCP Server)
+
+1. Install MCP extra:
    ```bash
-   uv run to-markdown tests/fixtures/ --force; echo "Exit: $?"
+   uv sync --extra mcp
    ```
-   Expected: Exit code 0 for success, 4 for partial failure.
+
+2. Verify the server starts:
+   ```bash
+   uv run python -m to_markdown.mcp &
+   # Should start without errors (it waits for stdio input)
+   kill %1
+   ```
+
+3. Add server to Claude Code:
+   ```bash
+   claude mcp add to-markdown -- \
+     uv --directory $(pwd) run --extra mcp python -m to_markdown.mcp
+   ```
+
+4. Test from Claude Code (in a new session):
+   - Ask: "Use to-markdown to convert tests/fixtures/pdf/basic.pdf"
+   - Expected: Agent calls `convert_file` tool, returns markdown with frontmatter
+
+5. Test list_formats:
+   - Ask: "What formats does to-markdown support?"
+   - Expected: Agent calls `list_formats` tool, returns format categories
+
+6. Test get_status:
+   - Ask: "What's the status of to-markdown?"
+   - Expected: Agent calls `get_status`, shows version and LLM availability
 
 ## Development
 

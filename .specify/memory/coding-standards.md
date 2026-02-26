@@ -32,6 +32,11 @@ to-markdown/
         clean.py           # --clean flag: LLM artifact repair
         summary.py         # --summary flag: Gemini document summarization
         images.py          # --images flag: Gemini vision image description
+      mcp/                 # MCP server for AI agent integration (optional)
+        __init__.py
+        __main__.py        # Entry point: python -m to_markdown.mcp
+        server.py          # FastMCP server with tool definitions
+        tools.py           # Tool handler implementations
   tests/
     test_batch.py          # Batch processing tests
     fixtures/              # Test input files per format

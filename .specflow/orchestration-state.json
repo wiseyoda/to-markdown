@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-26T15:17:05.537Z",
+  "last_updated": "2026-02-26T16:03:35.347Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,17 +14,21 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "Directory conversion with recursive support",
-        "Glob pattern support",
-        "Progress reporting",
-        "Error handling with continue-on-error",
-        "All tests passing"
+        "Build MCP server with convert_file, convert_batch, list_formats, get_status tools",
+        "Create mcp.json config for Claude Code/Desktop integration",
+        "Create Claude Code skill definition for /convert",
+        "Document agent setup for Codex and Gemini",
+        "Ensure agent-friendly structured output from MCP tools",
+        "Tests for all MCP tool handlers"
       ],
-      "hasUserGate": false,
+      "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "Directory conversion with mixed formats; progress reporting; all tests pass"
+      "userGateCriteria": "**USER GATE**: Claude Code can invoke to-markdown via MCP tools end-to-end"
     },
-    "next_phase": null,
+    "next_phase": {
+      "number": "0110",
+      "name": "Background Processing"
+    },
     "step": {
       "current": "design",
       "index": 0,
@@ -105,6 +109,15 @@
         "phase_name": "Batch Processing",
         "branch": "0050-batch-processing",
         "completed_at": "2026-02-26T15:17:05.536Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0100",
+        "phase_name": "MCP Server & AI Agent Skills",
+        "branch": "0100-mcp-server-ai-agent-skills",
+        "completed_at": "2026-02-26T16:03:35.347Z",
         "tasks_completed": 0,
         "tasks_total": 0
       }

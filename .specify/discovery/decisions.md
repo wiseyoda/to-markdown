@@ -545,3 +545,75 @@
 - **Decision**: Preserve relative path structure from input root within output directory. E.g., input docs/sub/file.pdf with -o out/ -> out/sub/file.md.
 - **Alternatives**: Flat output (all files in one directory), hash-based naming
 - **Consequences**: Predictable output structure; prevents filename collisions from subdirectories
+
+#### D-63: Official MCP Package
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Two options: official `mcp` package (Anthropic) or standalone `fastmcp` v3.0
+- **Decision**: Use official `mcp` package (v1.26+) which includes FastMCP. More stable, better documented, reference implementation.
+- **Alternatives**: Standalone `fastmcp` v3.0 (more features like timeouts, Depends())
+- **Consequences**: Standard dependency; may miss some v3.0 convenience features
+
+#### D-64: stdio Transport Only
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: MCP supports stdio, HTTP, and SSE transports
+- **Decision**: stdio only. All four target agents (Claude Code, Claude Desktop, Codex CLI, Gemini CLI) support it. No persistent server needed.
+- **Alternatives**: HTTP (needs persistent server), SSE
+- **Consequences**: Simple deployment; agent spawns process on demand
+
+#### D-65: Pin mcp <2
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: mcp v2 is in pre-alpha with breaking changes
+- **Decision**: Pin `mcp>=1.26,<2` to avoid breaking changes from v2.
+- **Alternatives**: Pin exact version, allow v2
+- **Consequences**: Stable API; will need manual upgrade when v2 stabilizes
+
+#### D-66: Return Content Directly
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: MCP tools need to return useful data to agents
+- **Decision**: convert_file returns markdown content as string (not file path). Truncate at MAX_MCP_OUTPUT_CHARS with pointer to file for large docs.
+- **Alternatives**: Always write file and return path, always inline
+- **Consequences**: Agents can reason about content; large docs handled gracefully
+
+#### D-67: Force=True for MCP
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: MCP tools can't prompt for interactive confirmation
+- **Decision**: convert_file uses convert_to_string (no file I/O). convert_batch uses force=True.
+- **Alternatives**: Error on existing files, add overwrite param
+- **Consequences**: No surprising overwrites in single-file; batch always succeeds
+
+#### D-68: convert_to_string in Pipeline
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: MCP needs content as string, not written to disk
+- **Decision**: Add convert_to_string() to pipeline.py. Shares logic with convert_file() via _build_content() internal function.
+- **Alternatives**: Read file back after convert_file, separate pipeline
+- **Consequences**: No unnecessary I/O for MCP; DRY with existing convert_file
+
+#### D-69: mcp/ Subpackage
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Where to put MCP server code
+- **Decision**: `src/to_markdown/mcp/` subpackage with server.py (FastMCP setup) and tools.py (handler logic). Runnable via `python -m to_markdown.mcp`.
+- **Alternatives**: Single mcp_server.py file
+- **Consequences**: Clean separation of concerns; follows smart/ pattern
+
+#### D-70: [mcp] Optional Extra
+- **Phase**: 0100 - MCP Server
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: mcp SDK is only needed for MCP server, not CLI usage
+- **Decision**: Add `[mcp]` optional dependency group in pyproject.toml. Core CLI unaffected.
+- **Alternatives**: Make mcp a core dependency
+- **Consequences**: Minimal install for CLI-only users; follows [llm] extras pattern
