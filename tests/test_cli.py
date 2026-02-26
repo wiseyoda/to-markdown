@@ -1,16 +1,20 @@
 """Tests for the Typer CLI (cli.py)."""
 
+import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
 from to_markdown.cli import app
 from to_markdown.core.constants import (
     EXIT_ALREADY_EXISTS,
+    EXIT_BACKGROUND,
     EXIT_ERROR,
     EXIT_PARTIAL,
     EXIT_SUCCESS,
+    TASK_DB_FILENAME,
+    TASK_LOG_DIR,
 )
 
 runner = CliRunner()
@@ -275,3 +279,296 @@ class TestBatchExitCodes:
         ]
         result = runner.invoke(app, [str(batch_dir), "--quiet"])
         assert result.exit_code == EXIT_PARTIAL
+
+
+# ---- Background Processing Tests ----
+
+
+class TestBackgroundFlag:
+    """Tests for --background / --bg flag (T012)."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_prints_task_id(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, [str(sample), "--background"])
+
+        assert result.exit_code == EXIT_BACKGROUND
+        # Should print a hex task ID
+        output = result.output.strip()
+        assert len(output) >= 8
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_creates_task(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, [str(sample), "--background"])
+
+        tasks = store.list()
+        assert len(tasks) == 1
+        assert tasks[0].input_path == str(sample)
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_spawns_worker(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            runner.invoke(app, [str(sample), "--background"])
+
+        mock_spawn.assert_called_once()
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_bg_short_flag_works(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, [str(sample), "--bg"])
+
+        assert result.exit_code == EXIT_BACKGROUND
+        mock_spawn.assert_called_once()
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_runs_cleanup(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with (
+            patch("to_markdown.cli._get_store", return_value=store),
+            patch.object(store, "cleanup") as mock_cleanup,
+            patch.object(store, "check_orphans") as mock_orphans,
+        ):
+            runner.invoke(app, [str(sample), "--background"])
+
+        mock_orphans.assert_called_once()
+        mock_cleanup.assert_called_once()
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_preserves_flags_in_command_args(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            runner.invoke(app, [str(sample), "--background", "--force"])
+
+        tasks = store.list()
+        args = json.loads(tasks[0].command_args)
+        assert args["force"] is True
+
+
+class TestWorkerFlag:
+    """Tests for --_worker internal flag (T014)."""
+
+    def test_worker_flag_not_in_help(self):
+        result = runner.invoke(app, ["--help"])
+        assert "--_worker" not in result.output
+
+    @patch("to_markdown.core.worker.run_worker")
+    def test_worker_flag_calls_run_worker(self, mock_run, tmp_path: Path):
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+
+        from to_markdown.core.tasks import TaskStore
+
+        store = TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+        task = store.create("/path/to/file.pdf")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--_worker", task.id])
+
+        mock_run.assert_called_once()
+        call_args = mock_run.call_args
+        assert call_args[0][0] == task.id
+
+
+class TestStatusFlag:
+    """Tests for --status flag (T016)."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    def test_status_single_shows_details(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStatus
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(
+            task.id,
+            status=TaskStatus.COMPLETED.value,
+            output_path="/path/to/file.md",
+            completed_at="2026-02-26T10:01:00",
+            started_at="2026-02-26T10:00:00",
+        )
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--status", task.id])
+
+        assert result.exit_code == EXIT_SUCCESS
+        assert task.id in result.output
+        assert "completed" in result.output.lower()
+
+    def test_status_all_shows_table(self, tmp_path: Path):
+        store = self._make_store(tmp_path)
+        store.create("/path/to/a.pdf")
+        store.create("/path/to/b.pdf")
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--status", "all"])
+
+        assert result.exit_code == EXIT_SUCCESS
+        assert "a.pdf" in result.output
+        assert "b.pdf" in result.output
+
+    def test_status_not_found(self, tmp_path: Path):
+        store = self._make_store(tmp_path)
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--status", "nonexistent"])
+
+        assert result.exit_code == EXIT_ERROR
+        assert "not found" in result.output.lower()
+
+    def test_status_no_tasks(self, tmp_path: Path):
+        store = self._make_store(tmp_path)
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--status", "all"])
+
+        assert result.exit_code == EXIT_SUCCESS
+        assert "no tasks" in result.output.lower()
+
+    def test_status_runs_orphan_check(self, tmp_path: Path):
+        store = self._make_store(tmp_path)
+
+        with (
+            patch("to_markdown.cli._get_store", return_value=store),
+            patch.object(store, "check_orphans") as mock_orphans,
+            patch.object(store, "cleanup") as mock_cleanup,
+        ):
+            runner.invoke(app, ["dummy", "--status", "all"])
+
+        mock_orphans.assert_called_once()
+        mock_cleanup.assert_called_once()
+
+
+class TestCancelFlag:
+    """Tests for --cancel flag (T016)."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    def test_cancel_running_task(self, tmp_path: Path):
+        import os
+
+        from to_markdown.core.tasks import TaskStatus
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(task.id, status=TaskStatus.RUNNING.value, pid=os.getpid())
+
+        with (
+            patch("to_markdown.cli._get_store", return_value=store),
+            patch("os.kill") as mock_kill,
+        ):
+            result = runner.invoke(app, ["dummy", "--cancel", task.id])
+
+        assert result.exit_code == EXIT_SUCCESS
+        assert "cancel" in result.output.lower()
+
+    def test_cancel_completed_task(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStatus
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(task.id, status=TaskStatus.COMPLETED.value)
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--cancel", task.id])
+
+        assert result.exit_code == EXIT_SUCCESS
+        assert "already" in result.output.lower()
+
+    def test_cancel_not_found(self, tmp_path: Path):
+        store = self._make_store(tmp_path)
+
+        with patch("to_markdown.cli._get_store", return_value=store):
+            result = runner.invoke(app, ["dummy", "--cancel", "nonexistent"])
+
+        assert result.exit_code == EXIT_ERROR
+        assert "not found" in result.output.lower()
+
+    def test_cancel_runs_orphan_check(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStatus
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(task.id, status=TaskStatus.RUNNING.value, pid=999999)
+
+        with (
+            patch("to_markdown.cli._get_store", return_value=store),
+            patch.object(store, "check_orphans") as mock_orphans,
+            patch.object(store, "cleanup") as mock_cleanup,
+            patch("os.kill"),
+        ):
+            runner.invoke(app, ["dummy", "--cancel", task.id])
+
+        mock_orphans.assert_called_once()
+        mock_cleanup.assert_called_once()
+
+
+class TestMutualExclusivity:
+    """Tests for flag mutual exclusivity (T016)."""
+
+    def test_background_and_status_exclusive(self, tmp_path: Path):
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+        result = runner.invoke(app, [str(sample), "--background", "--status", "all"])
+        assert result.exit_code == EXIT_ERROR
+
+    def test_background_and_cancel_exclusive(self, tmp_path: Path):
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+        result = runner.invoke(app, [str(sample), "--background", "--cancel", "abc"])
+        assert result.exit_code == EXIT_ERROR
+
+    def test_status_and_cancel_exclusive(self, tmp_path: Path):
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+        result = runner.invoke(app, [str(sample), "--status", "all", "--cancel", "abc"])
+        assert result.exit_code == EXIT_ERROR

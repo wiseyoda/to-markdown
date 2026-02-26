@@ -1,11 +1,15 @@
 """Tests for MCP tool handlers (mcp/tools.py)."""
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
-from to_markdown.core.constants import MAX_MCP_OUTPUT_CHARS
+from to_markdown.core.constants import (
+    MAX_MCP_OUTPUT_CHARS,
+    TASK_DB_FILENAME,
+    TASK_LOG_DIR,
+)
 from to_markdown.mcp.tools import (
     handle_convert_batch,
     handle_convert_file,
@@ -147,3 +151,221 @@ class TestHandleGetStatus:
         with patch("to_markdown.mcp.tools._check_llm_available", return_value=True):
             result = handle_get_status()
             assert "GEMINI_API_KEY not set" in result
+
+
+# ---- Background Tool Handler Tests (T020) ----
+
+
+class TestHandleStartConversion:
+    """Tests for handle_start_conversion."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_returns_task_id(self, mock_spawn, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            result = handle_start_conversion(str(sample))
+
+        assert "Task ID" in result
+        assert "pending" in result.lower()
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_creates_task_in_store(self, mock_spawn, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            handle_start_conversion(str(sample))
+
+        tasks = store.list()
+        assert len(tasks) == 1
+
+    def test_file_not_found(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        store = self._make_store(tmp_path)
+        with (
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+            pytest.raises(ValueError, match="not found"),
+        ):
+            handle_start_conversion(str(tmp_path / "nonexistent.pdf"))
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_directory_input(self, mock_spawn, batch_dir: Path, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            result = handle_start_conversion(str(batch_dir))
+
+        assert "Task ID" in result
+
+
+class TestHandleGetTaskStatus:
+    """Tests for handle_get_task_status."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    def test_returns_task_details(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStatus
+        from to_markdown.mcp.tools import handle_get_task_status
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(task.id, status=TaskStatus.COMPLETED.value, output_path="/out.md")
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            result = handle_get_task_status(task.id)
+
+        assert task.id in result
+        assert "completed" in result.lower()
+
+    def test_not_found(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_get_task_status
+
+        store = self._make_store(tmp_path)
+        with (
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+            pytest.raises(ValueError, match="not found"),
+        ):
+            handle_get_task_status("nonexistent")
+
+    def test_runs_orphan_check(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_get_task_status
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+
+        with (
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+            patch.object(store, "check_orphans") as mock_orphans,
+        ):
+            handle_get_task_status(task.id)
+
+        mock_orphans.assert_called_once()
+
+
+class TestHandleListTasks:
+    """Tests for handle_list_tasks."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    def test_returns_task_list(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_list_tasks
+
+        store = self._make_store(tmp_path)
+        store.create("/path/to/a.pdf")
+        store.create("/path/to/b.pdf")
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            result = handle_list_tasks()
+
+        assert "a.pdf" in result
+        assert "b.pdf" in result
+
+    def test_empty_returns_no_tasks(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_list_tasks
+
+        store = self._make_store(tmp_path)
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            result = handle_list_tasks()
+
+        assert "no" in result.lower()
+
+    def test_runs_orphan_check(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_list_tasks
+
+        store = self._make_store(tmp_path)
+
+        with (
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+            patch.object(store, "check_orphans") as mock_orphans,
+        ):
+            handle_list_tasks()
+
+        mock_orphans.assert_called_once()
+
+
+class TestHandleCancelTask:
+    """Tests for handle_cancel_task."""
+
+    def _make_store(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStore
+
+        store_dir = tmp_path / ".to-markdown"
+        store_dir.mkdir(exist_ok=True)
+        (store_dir / TASK_LOG_DIR).mkdir(exist_ok=True)
+        return TaskStore(db_path=store_dir / TASK_DB_FILENAME)
+
+    def test_cancels_running_task(self, tmp_path: Path):
+        import os
+
+        from to_markdown.core.tasks import TaskStatus
+        from to_markdown.mcp.tools import handle_cancel_task
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(task.id, status=TaskStatus.RUNNING.value, pid=os.getpid())
+
+        with (
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+            patch("os.kill"),
+        ):
+            result = handle_cancel_task(task.id)
+
+        assert "cancel" in result.lower()
+
+    def test_already_completed(self, tmp_path: Path):
+        from to_markdown.core.tasks import TaskStatus
+        from to_markdown.mcp.tools import handle_cancel_task
+
+        store = self._make_store(tmp_path)
+        task = store.create("/path/to/file.pdf")
+        store.update(task.id, status=TaskStatus.COMPLETED.value)
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            result = handle_cancel_task(task.id)
+
+        assert "already" in result.lower()
+
+    def test_not_found(self, tmp_path: Path):
+        from to_markdown.mcp.tools import handle_cancel_task
+
+        store = self._make_store(tmp_path)
+        with (
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+            pytest.raises(ValueError, match="not found"),
+        ):
+            handle_cancel_task("nonexistent")

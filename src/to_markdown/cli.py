@@ -80,6 +80,13 @@ def _validate_api_key(clean: bool, summary: bool, images: bool) -> None:
         raise typer.Exit(EXIT_ERROR)
 
 
+def _get_store():
+    """Get the default TaskStore (lazy import)."""
+    from to_markdown.core.background import get_store
+
+    return get_store()
+
+
 @app.command()
 def main(
     input_path: Annotated[
@@ -126,6 +133,22 @@ def main(
         bool,
         typer.Option("--fail-fast", help="Stop batch conversion on first error."),
     ] = False,
+    background: Annotated[
+        bool,
+        typer.Option("--background", "--bg", help="Run conversion in background."),
+    ] = False,
+    status: Annotated[
+        str | None,
+        typer.Option("--status", help="Show task status (task ID or 'all')."),
+    ] = None,
+    cancel: Annotated[
+        str | None,
+        typer.Option("--cancel", help="Cancel a running background task."),
+    ] = None,
+    _worker: Annotated[
+        str | None,
+        typer.Option("--_worker", help="Internal worker flag.", hidden=True),
+    ] = None,
     verbose: Annotated[
         int,
         typer.Option("--verbose", "-v", count=True, help="Increase verbosity (-v or -vv)."),
@@ -151,6 +174,49 @@ def main(
     """
     _configure_logging(verbose, quiet)
     _load_dotenv()
+
+    # Mutual exclusivity check
+    bg_flags = sum(bool(x) for x in [background, status, cancel])
+    if bg_flags > 1:
+        logger.error("--background, --status, and --cancel are mutually exclusive")
+        raise typer.Exit(EXIT_ERROR)
+
+    # Background processing flags (lazy import, early returns)
+    if _worker is not None or status is not None or cancel is not None or background:
+        from to_markdown.core.background import (
+            handle_background,
+            handle_cancel,
+            handle_status,
+            handle_worker,
+        )
+
+        store = _get_store()
+
+        if _worker is not None:
+            handle_worker(_worker, store)
+            return
+
+        if status is not None:
+            handle_status(status, store)
+            return
+
+        if cancel is not None:
+            handle_cancel(cancel, store)
+            return
+
+        _validate_api_key(clean, summary, images)
+        handle_background(
+            input_path,
+            output,
+            force=force,
+            clean=clean,
+            summary=summary,
+            images_flag=images,
+            store=store,
+        )
+        return
+
+    # Standard conversion mode
     _validate_api_key(clean, summary, images)
 
     resolved = Path(input_path)
