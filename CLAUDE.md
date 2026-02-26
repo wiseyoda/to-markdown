@@ -42,7 +42,8 @@ uv run ruff format --check      # format check
 ## Architecture
 
 Kreuzberg wrapper pipeline: extract -> compose frontmatter -> assemble -> write output.
-Core modules in `src/to_markdown/core/`. See coding-standards.md for details.
+Core modules in `src/to_markdown/core/`. MCP server in `src/to_markdown/mcp/`.
+See coding-standards.md for details.
 
 ## Commit Style
 

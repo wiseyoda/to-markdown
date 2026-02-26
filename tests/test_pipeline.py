@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from to_markdown.core.pipeline import OutputExistsError, convert_file
+from to_markdown.core.pipeline import OutputExistsError, convert_file, convert_to_string
 
 
 class TestBasicConversion:
@@ -199,3 +199,52 @@ class TestSmartFeatures:
             result = convert_file(sample_text_file, clean=True, summary=True)
             content = result.read_text()
             assert "## Summary" in content
+
+
+class TestConvertToString:
+    """Tests for convert_to_string() - returns content instead of writing to disk."""
+
+    def test_returns_string_with_frontmatter(self, sample_text_file: Path):
+        result = convert_to_string(sample_text_file)
+        assert isinstance(result, str)
+        assert result.startswith("---\n")
+        assert "extracted_at:" in result
+
+    def test_returns_source_content(self, sample_text_file: Path):
+        result = convert_to_string(sample_text_file)
+        assert "Hello" in result
+        assert "test document" in result
+
+    def test_does_not_write_file(self, sample_text_file: Path):
+        convert_to_string(sample_text_file)
+        output = sample_text_file.with_suffix(".md")
+        assert not output.exists()
+
+    def test_missing_input_raises_error(self, tmp_path: Path):
+        missing = tmp_path / "nonexistent.txt"
+        with pytest.raises(FileNotFoundError):
+            convert_to_string(missing)
+
+    def test_clean_flag(self, sample_text_file: Path):
+        with patch("to_markdown.smart.clean.clean_content", return_value="cleaned") as mock:
+            result = convert_to_string(sample_text_file, clean=True)
+            mock.assert_called_once()
+            assert "cleaned" in result
+
+    def test_summary_flag(self, sample_text_file: Path):
+        with (
+            patch("to_markdown.smart.summary.summarize_content", return_value="A summary."),
+            patch(
+                "to_markdown.smart.summary.format_summary_section",
+                return_value="## Summary\n\nA summary.\n",
+            ),
+        ):
+            result = convert_to_string(sample_text_file, summary=True)
+            assert "## Summary" in result
+
+    def test_consistent_with_convert_file(self, sample_text_file: Path):
+        """convert_to_string and convert_file should produce the same content."""
+        string_result = convert_to_string(sample_text_file)
+        file_path = convert_file(sample_text_file)
+        file_result = file_path.read_text()
+        assert string_result == file_result

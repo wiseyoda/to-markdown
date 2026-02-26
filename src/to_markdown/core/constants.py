@@ -40,6 +40,32 @@ IMAGE_DESCRIPTION_TEMPERATURE = 0.2
 SUMMARY_SECTION_HEADING = "## Summary"
 IMAGE_SECTION_HEADING = "## Image Descriptions"
 
+# --- MCP Server ---
+MCP_SERVER_NAME = "to-markdown"
+MCP_SERVER_INSTRUCTIONS = (
+    "File-to-Markdown converter optimized for LLM consumption. "
+    "Converts PDF, DOCX, XLSX, PPTX, HTML, images, and 70+ other formats "
+    "to clean Markdown with YAML frontmatter metadata. "
+    "Powered by Kreuzberg (Rust-based extraction). "
+    "Optional LLM features (--clean, --summary, --images) require GEMINI_API_KEY."
+)
+MAX_MCP_OUTPUT_CHARS = 80_000
+
+SUPPORTED_FORMATS_DESCRIPTION = """\
+to-markdown supports 76+ file formats via Kreuzberg (Rust-based extraction engine).
+
+**Document formats**: PDF, DOCX, DOC, ODT, RTF, EPUB, MOBI
+**Spreadsheets**: XLSX, XLS, ODS, CSV, TSV
+**Presentations**: PPTX, PPT, ODP
+**Web**: HTML, XHTML, XML, MHTML
+**Images (OCR)**: PNG, JPEG, TIFF, BMP, GIF, WebP (requires Tesseract)
+**Plain text**: TXT, MD, RST, ORG, TEX, LOG
+**Code**: Most programming language source files
+**Other**: EML, MSG (email), JSON, YAML, TOML
+
+Note: OCR-based formats (images, scanned PDFs) require Tesseract to be installed.\
+"""
+
 # --- LLM Prompts ---
 CLEAN_PROMPT = """\
 You are a document formatting repair tool. Your ONLY job is to fix extraction \

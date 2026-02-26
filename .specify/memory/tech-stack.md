@@ -40,6 +40,16 @@ Default model: `gemini-2.5-flash` (GA, free tier). Override via `GEMINI_MODEL` e
 |-----------|---------|---------|----------|
 | rich | 13.0+ | Terminal progress bars for batch processing | D-55, D-61 |
 
+## MCP Server
+
+| Technology | Version | Purpose | Decision |
+|-----------|---------|---------|----------|
+| mcp | 1.26+ (<2) | MCP Python SDK for AI agent integration | D-63, D-65 |
+| FastMCP | (in mcp) | Decorator-based tool definitions | D-63 |
+
+MCP server exposes to-markdown as tools for Claude Code, Claude Desktop, Codex CLI, and
+Gemini CLI. Uses stdio transport (D-64). Optional dependency via `[mcp]` extras (D-70).
+
 ## Infrastructure
 
 | Technology | Purpose | Decision |
@@ -53,6 +63,7 @@ Default model: `gemini-2.5-flash` (GA, free tier). Override via `GEMINI_MODEL` e
 | Method | Status | Notes |
 |--------|--------|-------|
 | Local (uv run) | Current | D-21: local only for now |
+| MCP server | Current | AI agents via `python -m to_markdown.mcp` (D-64, D-69) |
 | PyPI | Future | May publish eventually (D-26) |
 | pipx / uv tool | Future | For global CLI install |
 

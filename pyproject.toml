@@ -18,6 +18,9 @@ llm = [
   "tenacity>=8.0",
   "python-dotenv>=1.0",
 ]
+mcp = [
+  "mcp>=1.26,<2",
+]
 dev = [
   "ruff>=0.15.2",
   "pytest>=9.0",
@@ -32,6 +35,7 @@ dev = [
 
 [project.scripts]
 to-markdown = "to_markdown.cli:app"
+to-markdown-mcp = "to_markdown.mcp.server:run_server"
 
 [build-system]
 requires = ["hatchling"]
