@@ -10,6 +10,9 @@ secrets.*
 # SpecFlow runtime state
 .specflow/workflows/
 
+# Kreuzberg cache
+.kreuzberg/
+
 # Python
 __pycache__/
 *.py[cod]
