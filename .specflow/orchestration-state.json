@@ -5,27 +5,24 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-26T05:40:06.899Z",
+  "last_updated": "2026-02-26T14:57:24.088Z",
   "orchestration": {
     "phase": {
       "id": null,
-      "number": null,
-      "name": null,
-      "branch": null,
-      "status": "not_started",
+      "number": "0050",
+      "name": "Batch Processing",
+      "branch": "0050-batch-processing",
+      "status": "in_progress",
       "goals": [
-        "--clean flag fixes extraction artifacts via LLM",
-        "--summary flag generates LLM summary",
-        "--images flag describes images via Gemini vision",
-        "Flags compose correctly (--clean + --summary + --images)",
-        "Graceful degradation when LLM unavailable",
-        "Clear error messages for missing API key",
-        "Prompt templates stored as constants",
-        "All tests passing with mocked LLM responses"
+        "Directory conversion with recursive support",
+        "Glob pattern support",
+        "Progress reporting",
+        "Error handling with continue-on-error",
+        "All tests passing"
       ],
-      "hasUserGate": true,
+      "hasUserGate": false,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: `--summary` and `--images` flags work correctly with Gemini"
+      "userGateCriteria": "Directory conversion with mixed formats; progress reporting; all tests pass"
     },
     "next_phase": {
       "number": "0050",
@@ -34,7 +31,7 @@
     "step": {
       "current": "design",
       "index": 0,
-      "status": "not_started"
+      "status": "in_progress"
     },
     "analyze": {
       "iteration": 1,
