@@ -25,6 +25,7 @@ to-markdown/
         frontmatter.py     # YAML frontmatter composition from metadata
         pipeline.py        # Kreuzberg extract -> frontmatter -> LLM -> output
         constants.py       # ALL project constants (single source of truth)
+        batch.py           # Batch processing: file discovery + multi-file conversion
       smart/               # LLM-powered features (optional)
         __init__.py
         llm.py             # Gemini client wrapper
@@ -32,6 +33,7 @@ to-markdown/
         summary.py         # --summary flag: Gemini document summarization
         images.py          # --images flag: Gemini vision image description
   tests/
+    test_batch.py          # Batch processing tests
     fixtures/              # Test input files per format
       pdf/
       docx/
@@ -170,6 +172,7 @@ Defined in `core/constants.py`. Every CLI exit must use these:
 | 1 | `EXIT_ERROR` | General error (conversion failed, file unreadable, etc.) |
 | 2 | `EXIT_UNSUPPORTED` | Unsupported file format |
 | 3 | `EXIT_ALREADY_EXISTS` | Output file exists and --force not passed |
+| 4 | `EXIT_PARTIAL` | Batch: some files succeeded, some failed |
 
 ### Error Handling
 

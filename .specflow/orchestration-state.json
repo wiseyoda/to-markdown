@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-26T05:40:06.899Z",
+  "last_updated": "2026-02-26T15:17:05.537Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,23 +14,17 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "--clean flag fixes extraction artifacts via LLM",
-        "--summary flag generates LLM summary",
-        "--images flag describes images via Gemini vision",
-        "Flags compose correctly (--clean + --summary + --images)",
-        "Graceful degradation when LLM unavailable",
-        "Clear error messages for missing API key",
-        "Prompt templates stored as constants",
-        "All tests passing with mocked LLM responses"
+        "Directory conversion with recursive support",
+        "Glob pattern support",
+        "Progress reporting",
+        "Error handling with continue-on-error",
+        "All tests passing"
       ],
-      "hasUserGate": true,
+      "hasUserGate": false,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: `--summary` and `--images` flags work correctly with Gemini"
+      "userGateCriteria": "Directory conversion with mixed formats; progress reporting; all tests pass"
     },
-    "next_phase": {
-      "number": "0050",
-      "name": "Batch Processing"
-    },
+    "next_phase": null,
     "step": {
       "current": "design",
       "index": 0,
@@ -102,6 +96,15 @@
         "phase_name": "Smart Features",
         "branch": "0040-smart-features",
         "completed_at": "2026-02-26T05:40:06.899Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0050",
+        "phase_name": "Batch Processing",
+        "branch": "0050-batch-processing",
+        "completed_at": "2026-02-26T15:17:05.536Z",
         "tasks_completed": 0,
         "tasks_total": 0
       }

@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from to_markdown import __version__
+from to_markdown.core.batch import BatchResult
 from to_markdown.core.constants import (
     APP_NAME,
     EXIT_ALREADY_EXISTS,
@@ -15,6 +16,7 @@ from to_markdown.core.constants import (
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED,
     GEMINI_API_KEY_ENV,
+    GLOB_CHARS,
 )
 from to_markdown.core.extraction import ExtractionError, UnsupportedFormatError
 from to_markdown.core.pipeline import OutputExistsError, convert_file
@@ -79,9 +81,89 @@ def _validate_api_key(clean: bool, summary: bool, images: bool) -> None:
         raise typer.Exit(EXIT_ERROR)
 
 
+def _is_glob_pattern(value: str) -> bool:
+    """Check if a string contains glob pattern characters."""
+    return any(c in value for c in GLOB_CHARS)
+
+
+def _print_batch_summary(result: BatchResult, verbose: int) -> None:
+    """Print batch conversion summary."""
+    parts = [f"Converted {len(result.succeeded)} file(s)"]
+    if result.skipped:
+        parts.append(f"{len(result.skipped)} skipped")
+    if result.failed:
+        parts.append(f"{len(result.failed)} failed")
+    typer.echo(", ".join(parts))
+
+    if verbose >= 1 and result.failed:
+        for path, error in result.failed:
+            typer.echo(f"  FAILED: {path.name} - {error}", err=True)
+
+
+def _run_batch(
+    input_str: str,
+    output: Path | None,
+    *,
+    recursive: bool,
+    force: bool,
+    clean: bool,
+    summary: bool,
+    images: bool,
+    fail_fast: bool,
+    quiet: bool,
+    verbose: int,
+) -> None:
+    """Run batch conversion for directory or glob input."""
+    from to_markdown.core.batch import convert_batch, discover_files, resolve_glob
+
+    input_path = Path(input_str)
+    is_glob = _is_glob_pattern(input_str)
+
+    if is_glob:
+        files = resolve_glob(input_str)
+        if not files:
+            logger.error("No files matched pattern: %s", input_str)
+            raise typer.Exit(EXIT_ERROR)
+        batch_root = None
+    else:
+        if not input_path.exists():
+            logger.error("Directory not found: %s", input_path)
+            raise typer.Exit(EXIT_ERROR)
+        files = discover_files(input_path, recursive=recursive)
+        if not files:
+            logger.error("No supported files found in: %s", input_path)
+            raise typer.Exit(EXIT_ERROR)
+        batch_root = input_path.resolve()
+
+    # Validate -o is a directory (or doesn't exist) for batch mode
+    if output is not None and output.exists() and not output.is_dir():
+        logger.error("Output must be a directory for batch mode: %s", output)
+        raise typer.Exit(EXIT_ERROR)
+
+    result = convert_batch(
+        files,
+        output_dir=output,
+        batch_root=batch_root,
+        force=force,
+        clean=clean,
+        summary=summary,
+        images=images,
+        fail_fast=fail_fast,
+        quiet=quiet,
+    )
+
+    if not quiet:
+        _print_batch_summary(result, verbose)
+
+    raise typer.Exit(result.exit_code)
+
+
 @app.command()
 def main(
-    file: Annotated[Path, typer.Argument(help="File to convert to Markdown.")],
+    input_path: Annotated[
+        str,
+        typer.Argument(help="File, directory, or glob pattern to convert to Markdown."),
+    ],
     output: Annotated[
         Path | None,
         typer.Option("--output", "-o", help="Output path (file or directory)."),
@@ -114,6 +196,14 @@ def main(
             help="Describe images via LLM vision (requires GEMINI_API_KEY).",
         ),
     ] = False,
+    no_recursive: Annotated[
+        bool,
+        typer.Option("--no-recursive", help="Disable recursive directory scanning."),
+    ] = False,
+    fail_fast: Annotated[
+        bool,
+        typer.Option("--fail-fast", help="Stop batch conversion on first error."),
+    ] = False,
     verbose: Annotated[
         int,
         typer.Option("--verbose", "-v", count=True, help="Increase verbosity (-v or -vv)."),
@@ -132,14 +222,37 @@ def main(
         ),
     ] = False,
 ) -> None:
-    """Convert a file to Markdown with YAML frontmatter."""
+    """Convert files to Markdown with YAML frontmatter.
+
+    Accepts a single file, a directory (converts all supported files), or a glob
+    pattern (e.g., "docs/*.pdf"). Directories are scanned recursively by default.
+    """
     _configure_logging(verbose, quiet)
     _load_dotenv()
     _validate_api_key(clean, summary, images)
 
+    resolved = Path(input_path)
+
+    # Batch mode: directory or glob pattern
+    if resolved.is_dir() or _is_glob_pattern(input_path):
+        _run_batch(
+            input_path,
+            output,
+            recursive=not no_recursive,
+            force=force,
+            clean=clean,
+            summary=summary,
+            images=images,
+            fail_fast=fail_fast,
+            quiet=quiet,
+            verbose=verbose,
+        )
+        return  # _run_batch raises typer.Exit
+
+    # Single file mode (existing behavior)
     try:
         result_path = convert_file(
-            file,
+            resolved,
             output_path=output,
             force=force,
             clean=clean,
@@ -163,7 +276,7 @@ def main(
         raise typer.Exit(EXIT_ERROR) from exc
 
     if not quiet:
-        typer.echo(f"Converted {file} \u2192 {result_path}")
+        typer.echo(f"Converted {input_path} \u2192 {result_path}")
 
     raise typer.Exit(EXIT_SUCCESS)
 
