@@ -15,6 +15,7 @@ dependencies = [
 llm = [
   "google-genai>=1.59.0",
   "tenacity>=8.0",
+  "python-dotenv>=1.0",
 ]
 dev = [
   "ruff>=0.15.2",

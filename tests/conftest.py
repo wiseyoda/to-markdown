@@ -2,6 +2,7 @@
 
 import re
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -38,3 +39,45 @@ def output_dir(tmp_path: Path) -> Path:
     out = tmp_path / "output"
     out.mkdir()
     return out
+
+
+@pytest.fixture
+def mock_gemini_client():
+    """Mock the Gemini client for LLM tests."""
+    mock_client = MagicMock()
+    with (
+        patch("to_markdown.smart.llm._client", mock_client),
+        patch("to_markdown.smart.llm.get_client", return_value=mock_client),
+    ):
+        yield mock_client
+
+
+@pytest.fixture
+def mock_generate():
+    """Mock the generate function with configurable responses."""
+
+    def _make_mock(return_value: str = "Mocked LLM response"):
+        return patch("to_markdown.smart.llm.generate", return_value=return_value)
+
+    return _make_mock
+
+
+@pytest.fixture
+def sample_extracted_images() -> list[dict]:
+    """Sample extracted images for testing."""
+    return [
+        {
+            "data": b"\x89PNG\r\n\x1a\n" + b"\x00" * 100,
+            "format": "png",
+            "page_number": 1,
+            "width": 200,
+            "height": 100,
+        },
+        {
+            "data": b"\xff\xd8\xff\xe0" + b"\x00" * 100,
+            "format": "jpeg",
+            "page_number": 2,
+            "width": 400,
+            "height": 300,
+        },
+    ]

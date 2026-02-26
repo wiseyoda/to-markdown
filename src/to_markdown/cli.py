@@ -1,6 +1,7 @@
 """Typer CLI entry point for to-markdown."""
 
 import logging
+import os
 from pathlib import Path
 from typing import Annotated
 
@@ -13,6 +14,7 @@ from to_markdown.core.constants import (
     EXIT_ERROR,
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED,
+    GEMINI_API_KEY_ENV,
 )
 from to_markdown.core.extraction import ExtractionError, UnsupportedFormatError
 from to_markdown.core.pipeline import OutputExistsError, convert_file
@@ -50,6 +52,33 @@ def _configure_logging(verbose: int, quiet: bool) -> None:
     )
 
 
+def _load_dotenv() -> None:
+    """Load .env file if python-dotenv is available."""
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv()
+    except ImportError:
+        pass
+
+
+def _validate_api_key(clean: bool, summary: bool, images: bool) -> None:
+    """Validate GEMINI_API_KEY is set when smart features are requested."""
+    if not (clean or summary or images):
+        return
+
+    if not os.environ.get(GEMINI_API_KEY_ENV):
+        logger.error(
+            "%s is not set. Smart features (--clean, --summary, --images) require a "
+            "Gemini API key.\n\n"
+            "Set it with:\n"
+            "  export GEMINI_API_KEY=your-api-key\n\n"
+            "Or add it to a .env file in your project directory.",
+            GEMINI_API_KEY_ENV,
+        )
+        raise typer.Exit(EXIT_ERROR)
+
+
 @app.command()
 def main(
     file: Annotated[Path, typer.Argument(help="File to convert to Markdown.")],
@@ -60,6 +89,30 @@ def main(
     force: Annotated[
         bool,
         typer.Option("--force", "-f", help="Overwrite existing output file."),
+    ] = False,
+    clean: Annotated[
+        bool,
+        typer.Option(
+            "--clean",
+            "-c",
+            help="Fix extraction artifacts via LLM (requires GEMINI_API_KEY).",
+        ),
+    ] = False,
+    summary: Annotated[
+        bool,
+        typer.Option(
+            "--summary",
+            "-s",
+            help="Generate document summary via LLM (requires GEMINI_API_KEY).",
+        ),
+    ] = False,
+    images: Annotated[
+        bool,
+        typer.Option(
+            "--images",
+            "-i",
+            help="Describe images via LLM vision (requires GEMINI_API_KEY).",
+        ),
     ] = False,
     verbose: Annotated[
         int,
@@ -81,9 +134,18 @@ def main(
 ) -> None:
     """Convert a file to Markdown with YAML frontmatter."""
     _configure_logging(verbose, quiet)
+    _load_dotenv()
+    _validate_api_key(clean, summary, images)
 
     try:
-        result_path = convert_file(file, output_path=output, force=force)
+        result_path = convert_file(
+            file,
+            output_path=output,
+            force=force,
+            clean=clean,
+            summary=summary,
+            images=images,
+        )
     except FileNotFoundError as exc:
         logger.error("%s", exc)
         raise typer.Exit(EXIT_ERROR) from exc

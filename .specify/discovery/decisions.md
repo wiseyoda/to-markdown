@@ -374,3 +374,102 @@
 - **Alternatives**: Keep original phases but simplify each
 - **Consequences**: Dramatically reduced project scope and timeline; Old phase files archived
 - **Memory Doc Impact**: ROADMAP.md, all phase files
+
+#### D-44: python-dotenv as LLM Dependency
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need to load GEMINI_API_KEY from .env files for convenience
+- **Decision**: Add python-dotenv to the `[llm]` optional extras. Call `load_dotenv()` in CLI before API key check.
+- **Alternatives**: Manual env var export only, keyring
+- **Consequences**: One additional dependency in LLM extras; .env files already in .gitignore
+
+#### D-45: Gemini Client as Singleton Module
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Multiple smart features all need a Gemini client
+- **Decision**: `smart/llm.py` provides `get_client()` with lazy caching and `generate()` wrapper with tenacity retry.
+- **Alternatives**: Per-module clients, dependency injection
+- **Consequences**: Single point for client config, retry, and error handling
+
+#### D-46: Retry Policy for LLM Calls
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Gemini API can return 429 (rate limit) or 503 (service unavailable)
+- **Decision**: Tenacity exponential backoff: min=1s, max=60s, max 5 attempts. Retry on ServerError and ClientError 429. Fail fast on 400/401/403.
+- **Alternatives**: Simple sleep-and-retry, no retry
+- **Consequences**: Handles transient failures gracefully
+
+#### D-47: Smart Feature Processing Order
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: When multiple flags are combined, order matters
+- **Decision**: Processing order: clean -> images -> summary. Clean first for better content quality.
+- **Alternatives**: summary -> clean -> images
+- **Consequences**: Pipeline enforces order regardless of CLI flag order
+
+#### D-48: Graceful Degradation Strategy
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: LLM failures must not prevent core conversion
+- **Decision**: On LLM failure after retries, log WARNING and continue with unenhanced content. Each feature degrades independently.
+- **Alternatives**: Error and stop, silent failure
+- **Consequences**: Users always get output; warnings indicate skipped enhancements
+
+#### D-49: API Key Validation in CLI Layer
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Users need clear feedback without GEMINI_API_KEY
+- **Decision**: Validate key presence in CLI before pipeline. Exit with clear error if missing.
+- **Alternatives**: Attempt and degrade, validate in pipeline
+- **Consequences**: Fast, clear failure with actionable message
+
+#### D-50: Prompt Templates as Constants
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Phase spec requires prompts as constants
+- **Decision**: Store CLEAN_PROMPT, SUMMARY_PROMPT, IMAGE_DESCRIPTION_PROMPT in constants.py.
+- **Alternatives**: Separate prompts.py, Jinja2
+- **Consequences**: Prompts centralized; constants.py stays under 300 lines
+
+#### D-51: Chunking Strategy for --clean
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Large documents need chunking for LLM context window
+- **Decision**: Split at paragraph boundaries (double newline `\n\n`). MAX_CLEAN_TOKENS = 100K (~400K chars).
+- **Alternatives**: Word-level splitting, let API truncate
+- **Consequences**: Large documents processed correctly with context preservation
+
+#### D-52: Summary Insertion Point
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Where to place the generated summary
+- **Decision**: `## Summary` section after frontmatter, before main content.
+- **Alternatives**: Inline in frontmatter, end of document
+- **Consequences**: Clean separation of generated summary from extracted content
+
+#### D-53: Image Description Section
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: How image descriptions appear in output
+- **Decision**: `## Image Descriptions` section at end of content. Each image: `### Image N (Page P)`.
+- **Alternatives**: Inline alt text, frontmatter field
+- **Consequences**: Descriptions discoverable but separate from text flow
+
+#### D-54: Temperature Settings
+- **Phase**: 0040 - Smart Features
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Different features need different creativity levels
+- **Decision**: --clean=0.1 (deterministic), --summary=0.3 (readable prose), --images=0.2 (factual).
+- **Alternatives**: Same temperature for all, user-configurable
+- **Consequences**: Each feature gets appropriate creativity level

@@ -45,7 +45,7 @@ This allows inserting urgent work without renumbering existing phases.
 | 0010 | Research & Tooling | ✅ Complete | **USER GATE**: All selections confirmed, research docs committed, governance updated |
 | 0020 | Core CLI & Pipeline | ✅ Complete | `to-markdown test.txt` produces valid .md with frontmatter; `ruff check` + `pytest` pass |
 | 0030 | Format Quality & Testing | ✅ Complete | **USER GATE**: Golden file tests pass for PDF, DOCX, PPTX, XLSX, HTML, images |
-| 0040 | Smart Features | ⬜ Not Started | **USER GATE**: `--summary` and `--images` flags work correctly with Gemini |
+| 0040 | Smart Features | ✅ Complete | **USER GATE**: `--summary` and `--images` flags work correctly with Gemini |
 | 0050 | Batch Processing | ⬜ Not Started | Directory conversion with mixed formats; progress reporting; all tests pass |
 
 **Legend**: ⬜ Not Started | 🔄 In Progress | ✅ Complete | **USER GATE** = Requires user verification

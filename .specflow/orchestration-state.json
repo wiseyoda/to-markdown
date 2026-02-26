@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-25T20:06:46.011Z",
+  "last_updated": "2026-02-26T05:40:06.899Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,19 +14,22 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "Curate test fixtures for 6 formats (PDF, DOCX, PPTX, XLSX, HTML, images)",
-        "Create golden file snapshot tests with syrupy",
-        "Per-format quality assessment and configuration tuning",
-        "Edge case tests for error handling",
-        "Human testing instructions for real-world verification"
+        "--clean flag fixes extraction artifacts via LLM",
+        "--summary flag generates LLM summary",
+        "--images flag describes images via Gemini vision",
+        "Flags compose correctly (--clean + --summary + --images)",
+        "Graceful degradation when LLM unavailable",
+        "Clear error messages for missing API key",
+        "Prompt templates stored as constants",
+        "All tests passing with mocked LLM responses"
       ],
       "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: Golden file tests pass for PDF, DOCX, PPTX, XLSX, HTML, images"
+      "userGateCriteria": "**USER GATE**: `--summary` and `--images` flags work correctly with Gemini"
     },
     "next_phase": {
-      "number": "0040",
-      "name": "Smart Features"
+      "number": "0050",
+      "name": "Batch Processing"
     },
     "step": {
       "current": "design",
@@ -90,6 +93,15 @@
         "phase_name": "Format Quality & Testing",
         "branch": "0030-format-quality-testing",
         "completed_at": "2026-02-25T20:06:46.011Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0040",
+        "phase_name": "Smart Features",
+        "branch": "0040-smart-features",
+        "completed_at": "2026-02-26T05:40:06.899Z",
         "tasks_completed": 0,
         "tasks_total": 0
       }
