@@ -85,6 +85,13 @@ TASK_STATUS_COMPLETED = "completed"
 TASK_STATUS_FAILED = "failed"
 TASK_STATUS_CANCELLED = "cancelled"
 
+# --- Setup / Install ---
+SETUP_ENV_FILE = ".env"
+SETUP_GEMINI_KEY_URL = "https://aistudio.google.com/apikey"
+SETUP_VALIDATION_PROMPT = "Say 'ok' in one word."
+SETUP_VALIDATION_MAX_TOKENS = 10
+SHELL_ALIAS_COMMENT = "# Added by to-markdown installer"
+
 # --- LLM Prompts ---
 CLEAN_PROMPT = """\
 You are a document formatting repair tool. Your ONLY job is to fix extraction \

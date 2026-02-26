@@ -4,10 +4,22 @@ CLI file-to-Markdown converter optimized for LLM consumption. Wraps
 [Kreuzberg](https://github.com/Goldziher/kreuzberg) (76+ formats) with YAML
 frontmatter and a polished CLI.
 
-## Install
+## Quick Start (Non-Technical Users)
+
+See **[INSTALL.md](INSTALL.md)** for step-by-step installation instructions.
 
 ```bash
-uv sync
+git clone https://github.com/wiseyoda/to-markdown.git
+cd to-markdown
+./install.sh        # macOS
+# .\install.ps1     # Windows
+```
+
+## Install (Developers)
+
+```bash
+uv sync                   # Core only
+uv sync --all-extras      # Everything (LLM, MCP, dev tools)
 ```
 
 ## Usage

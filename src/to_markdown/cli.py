@@ -90,9 +90,13 @@ def _get_store():
 @app.command()
 def main(
     input_path: Annotated[
-        str,
+        str | None,
         typer.Argument(help="File, directory, or glob pattern to convert to Markdown."),
-    ],
+    ] = None,
+    setup: Annotated[
+        bool,
+        typer.Option("--setup", help="Run interactive configuration wizard."),
+    ] = False,
     output: Annotated[
         Path | None,
         typer.Option("--output", "-o", help="Output path (file or directory)."),
@@ -174,6 +178,21 @@ def main(
     """
     _configure_logging(verbose, quiet)
     _load_dotenv()
+
+    # Setup wizard (early return, no input_path required)
+    if setup:
+        from to_markdown.core.setup import run_setup, run_setup_quiet
+
+        if quiet:
+            run_setup_quiet()
+        else:
+            run_setup()
+        raise typer.Exit(EXIT_SUCCESS)
+
+    # input_path is required for all other modes
+    if input_path is None:
+        logger.error("Missing required argument: INPUT_PATH")
+        raise typer.Exit(EXIT_ERROR)
 
     # Mutual exclusivity check
     bg_flags = sum(bool(x) for x in [background, status, cancel])
