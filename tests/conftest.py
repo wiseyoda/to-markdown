@@ -81,3 +81,38 @@ def sample_extracted_images() -> list[dict]:
             "height": 300,
         },
     ]
+
+
+@pytest.fixture
+def batch_dir(tmp_path: Path) -> Path:
+    """Create a directory with mixed-format files for batch testing."""
+    d = tmp_path / "docs"
+    d.mkdir()
+    (d / "report.txt").write_text("Report content.\n")
+    (d / "notes.txt").write_text("Notes content.\n")
+    (d / "readme.html").write_text("<html><body><p>Hello</p></body></html>\n")
+    # Subdirectory with files
+    sub = d / "sub"
+    sub.mkdir()
+    (sub / "deep.txt").write_text("Deep file content.\n")
+    return d
+
+
+@pytest.fixture
+def empty_dir(tmp_path: Path) -> Path:
+    """Create an empty directory."""
+    d = tmp_path / "empty"
+    d.mkdir()
+    return d
+
+
+@pytest.fixture
+def hidden_files_dir(tmp_path: Path) -> Path:
+    """Create a directory with hidden files and extensionless files."""
+    d = tmp_path / "hidden"
+    d.mkdir()
+    (d / ".hidden_file.txt").write_text("hidden\n")
+    (d / ".DS_Store").write_bytes(b"\x00" * 10)
+    (d / "Makefile").write_text("all:\n\techo hi\n")  # no extension
+    (d / "visible.txt").write_text("Visible content.\n")
+    return d

@@ -473,3 +473,75 @@
 - **Decision**: --clean=0.1 (deterministic), --summary=0.3 (readable prose), --images=0.2 (factual).
 - **Alternatives**: Same temperature for all, user-configurable
 - **Consequences**: Each feature gets appropriate creativity level
+
+#### D-55: Progress Bar Library
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need terminal progress bar for batch conversion feedback
+- **Decision**: Use `rich` library (>=13.0) for progress bars. Standard, well-maintained, excellent terminal support.
+- **Alternatives**: tqdm (lighter but less pretty), print statements (too basic)
+- **Consequences**: New core dependency; rich provides Progress with file count, percentage, ETA
+
+#### D-56: Input Detection Strategy
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: CLI needs to accept files, directories, and glob patterns
+- **Decision**: Detect input type from CLI argument: existing file -> single, existing directory -> batch, contains glob chars (* ? [) -> glob batch. Single argument, no subcommands.
+- **Alternatives**: Separate subcommands (to-markdown file/to-markdown dir), separate --glob flag
+- **Consequences**: CLI argument changes from Path to str; intuitive UX, minimal learning curve
+
+#### D-57: Format Filtering Strategy
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need to determine which files to attempt converting in a directory
+- **Decision**: No maintained extension list. Let Kreuzberg decide per-file via UnsupportedFormatError (fast rejection). Skip hidden files and extensionless files.
+- **Alternatives**: Maintain a SUPPORTED_EXTENSIONS set (maintenance burden, goes stale)
+- **Consequences**: Zero maintenance for format list; Kreuzberg updates automatically extend support
+
+#### D-58: Partial Failure Exit Code
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Batch can have mixed results (some succeed, some fail)
+- **Decision**: New EXIT_PARTIAL = 4. All succeed (skips OK) = 0, mixed = 4, all fail = 1.
+- **Alternatives**: Use EXIT_ERROR for any failure, use EXIT_SUCCESS with warnings
+- **Consequences**: Scripts can distinguish full success from partial; follows Unix conventions
+
+#### D-59: Hidden File Handling
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Directory scanning encounters hidden files (.DS_Store, .git, etc.)
+- **Decision**: Skip all hidden files (name starts with .) and hidden directories during scanning. Also skip files with no extension.
+- **Alternatives**: Attempt all files, let Kreuzberg reject
+- **Consequences**: Cleaner output, faster scanning, no noise from system files
+
+#### D-60: CLI Argument Type Change
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Typer Path argument cannot represent glob patterns like "*.pdf"
+- **Decision**: Change argument type from Path to str. Validate and resolve within the command function.
+- **Alternatives**: Keep Path and add separate --glob option
+- **Consequences**: Single argument handles all input types; slight loss of Typer's Path validation
+
+#### D-61: Rich as Core Dependency
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Progress bars are a core feature of batch processing, not optional
+- **Decision**: Add rich as a core dependency (not optional extra). Batch progress is fundamental UX.
+- **Alternatives**: Optional rich with fallback to print, tqdm
+- **Consequences**: Slightly larger install; guaranteed progress bar experience
+
+#### D-62: Output Directory Mirroring
+- **Phase**: 0050 - Batch Processing
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: When -o is a directory and input is a directory, output structure matters
+- **Decision**: Preserve relative path structure from input root within output directory. E.g., input docs/sub/file.pdf with -o out/ -> out/sub/file.md.
+- **Alternatives**: Flat output (all files in one directory), hash-based naming
+- **Consequences**: Predictable output structure; prevents filename collisions from subdirectories

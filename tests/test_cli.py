@@ -6,7 +6,12 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from to_markdown.cli import app
-from to_markdown.core.constants import EXIT_ALREADY_EXISTS, EXIT_ERROR, EXIT_SUCCESS
+from to_markdown.core.constants import (
+    EXIT_ALREADY_EXISTS,
+    EXIT_ERROR,
+    EXIT_PARTIAL,
+    EXIT_SUCCESS,
+)
 
 runner = CliRunner()
 
@@ -27,9 +32,11 @@ class TestHelp:
     def test_help_prints_usage(self):
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == EXIT_SUCCESS
-        assert "Convert a file to Markdown" in result.output
+        assert "Convert files to Markdown" in result.output
         assert "--force" in result.output
         assert "--output" in result.output
+        assert "--no-recursive" in result.output
+        assert "--fail-fast" in result.output
 
 
 class TestBasicConversion:
@@ -189,3 +196,82 @@ class TestApiKeyValidation:
         ):
             result = runner.invoke(app, [str(sample_text_file)])
             assert result.exit_code == EXIT_SUCCESS
+
+
+class TestBatchDirectory:
+    """Tests for batch directory conversion via CLI."""
+
+    def test_directory_converts_files(self, batch_dir: Path):
+        result = runner.invoke(app, [str(batch_dir), "--quiet"])
+        assert result.exit_code == EXIT_SUCCESS
+
+    def test_directory_with_output_dir(self, batch_dir: Path, tmp_path: Path):
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        result = runner.invoke(app, [str(batch_dir), "-o", str(out_dir), "--quiet"])
+        assert result.exit_code == EXIT_SUCCESS
+
+    def test_no_recursive_flag(self, batch_dir: Path):
+        result = runner.invoke(app, [str(batch_dir), "--no-recursive", "--quiet"])
+        assert result.exit_code == EXIT_SUCCESS
+
+    def test_empty_directory_exits_error(self, empty_dir: Path):
+        result = runner.invoke(app, [str(empty_dir)])
+        assert result.exit_code == EXIT_ERROR
+        assert "No supported files" in result.output
+
+    def test_batch_shows_summary(self, batch_dir: Path):
+        result = runner.invoke(app, [str(batch_dir)])
+        assert "Converted" in result.output
+
+    def test_nonexistent_directory_exits_error(self, tmp_path: Path):
+        missing = tmp_path / "nonexistent"
+        result = runner.invoke(app, [str(missing)])
+        assert result.exit_code == EXIT_ERROR
+
+
+class TestBatchGlob:
+    """Tests for glob pattern conversion via CLI."""
+
+    def test_glob_converts_matching(self, batch_dir: Path):
+        pattern = str(batch_dir / "*.txt")
+        result = runner.invoke(app, [pattern, "--quiet"])
+        assert result.exit_code == EXIT_SUCCESS
+
+    def test_glob_no_match_exits_error(self, batch_dir: Path):
+        pattern = str(batch_dir / "*.xyz")
+        result = runner.invoke(app, [pattern])
+        assert result.exit_code == EXIT_ERROR
+        assert "No files matched" in result.output
+
+
+class TestBatchFailFast:
+    """Tests for --fail-fast flag."""
+
+    @patch("to_markdown.core.batch.convert_file")
+    def test_fail_fast_stops_on_error(self, mock_convert, batch_dir: Path):
+        from to_markdown.core.extraction import ExtractionError
+
+        mock_convert.side_effect = ExtractionError("fail")
+        result = runner.invoke(app, [str(batch_dir), "--fail-fast", "--quiet"])
+        assert result.exit_code == EXIT_ERROR
+        # Should have tried only 1 file before stopping
+        assert mock_convert.call_count == 1
+
+
+class TestBatchExitCodes:
+    """Tests for batch exit codes."""
+
+    @patch("to_markdown.core.batch.convert_file")
+    def test_partial_failure_exits_4(self, mock_convert, batch_dir: Path):
+        from to_markdown.core.extraction import ExtractionError
+
+        # First call succeeds, rest fail
+        mock_convert.side_effect = [
+            (batch_dir / "report.md"),
+            ExtractionError("fail"),
+            ExtractionError("fail"),
+            ExtractionError("fail"),
+        ]
+        result = runner.invoke(app, [str(batch_dir), "--quiet"])
+        assert result.exit_code == EXIT_PARTIAL

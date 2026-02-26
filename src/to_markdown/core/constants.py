@@ -8,9 +8,13 @@ EXIT_SUCCESS = 0
 EXIT_ERROR = 1
 EXIT_UNSUPPORTED = 2
 EXIT_ALREADY_EXISTS = 3
+EXIT_PARTIAL = 4
 
 # --- File Processing ---
 DEFAULT_OUTPUT_EXTENSION = ".md"
+
+# --- Batch Processing ---
+GLOB_CHARS = frozenset("*?[")
 
 # --- LLM ---
 GEMINI_DEFAULT_MODEL = "gemini-2.5-flash"

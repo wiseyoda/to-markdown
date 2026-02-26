@@ -34,6 +34,12 @@ HTML, images/OCR, and 70+ additional formats via its Rust core.
 
 Default model: `gemini-2.5-flash` (GA, free tier). Override via `GEMINI_MODEL` env var.
 
+## CLI & UX
+
+| Technology | Version | Purpose | Decision |
+|-----------|---------|---------|----------|
+| rich | 13.0+ | Terminal progress bars for batch processing | D-55, D-61 |
+
 ## Infrastructure
 
 | Technology | Purpose | Decision |
