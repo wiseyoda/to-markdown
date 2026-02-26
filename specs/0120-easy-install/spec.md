@@ -142,3 +142,16 @@ The `--setup` flag MUST be registered in `cli.py` and delegate to `core/setup.py
 
 ### WR-002: Setup constants in constants.py
 All setup-related constants MUST be defined in `core/constants.py`.
+
+## Phase Goals Coverage
+
+| # | Phase Goal | Spec Requirement(s) | Task(s) | Status |
+|---|------------|---------------------|---------|--------|
+| 1 | One-command macOS install (install.sh) | FR-001, FR-002 | T002-T004 | COVERED |
+| 2 | One-command Windows install (install.ps1) | FR-003 | T005-T007 | COVERED |
+| 3 | Interactive configuration wizard (--setup) | FR-004, FR-005 | T008-T014 | COVERED |
+| 4 | Step-by-step INSTALL.md for non-technical users | FR-006 | T018-T020 | COVERED |
+| 5 | Clean uninstall scripts | NFR-004 | T015-T017 | COVERED |
+| 6 | Tests for install logic and config wizard | SC-001, SC-002 | T008, T022-T025 | COVERED |
+
+Coverage: 6/6 goals (100%)
