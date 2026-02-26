@@ -1,6 +1,7 @@
 """Tests for the Typer CLI (cli.py)."""
 
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -105,3 +106,86 @@ class TestVerbosity:
         assert result.exit_code == EXIT_SUCCESS
         # INFO messages should appear in stderr/logging, success in stdout
         assert "Converted" in result.output
+
+
+class TestSmartFlags:
+    """Tests for --clean, --summary, --images flags."""
+
+    def test_help_shows_smart_flags(self):
+        result = runner.invoke(app, ["--help"])
+        assert "--clean" in result.output
+        assert "--summary" in result.output
+        assert "--images" in result.output
+
+    def test_clean_flag_accepted(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+            patch("to_markdown.smart.clean.clean_content", return_value="cleaned"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "--clean"])
+            assert result.exit_code == EXIT_SUCCESS
+
+    def test_summary_flag_accepted(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+            patch("to_markdown.smart.summary.summarize_content", return_value=None),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "--summary"])
+            assert result.exit_code == EXIT_SUCCESS
+
+    def test_images_flag_accepted(self, sample_text_file: Path):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file), "--images"])
+            assert result.exit_code == EXIT_SUCCESS
+
+    def test_short_flags_accepted(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+            patch("to_markdown.smart.clean.clean_content", return_value="cleaned"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "-c"])
+            assert result.exit_code == EXIT_SUCCESS
+
+
+class TestApiKeyValidation:
+    """Tests for API key validation with smart flags."""
+
+    def test_missing_key_with_clean_exits_error(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("to_markdown.cli._load_dotenv"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "--clean"])
+            assert result.exit_code == EXIT_ERROR
+
+    def test_missing_key_with_summary_exits_error(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("to_markdown.cli._load_dotenv"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "--summary"])
+            assert result.exit_code == EXIT_ERROR
+
+    def test_missing_key_with_images_exits_error(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("to_markdown.cli._load_dotenv"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "--images"])
+            assert result.exit_code == EXIT_ERROR
+
+    def test_error_message_mentions_api_key(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("to_markdown.cli._load_dotenv"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file), "--clean"])
+            assert "GEMINI_API_KEY" in result.output
+
+    def test_no_error_without_smart_flags(self, sample_text_file: Path):
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("to_markdown.cli._load_dotenv"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file)])
+            assert result.exit_code == EXIT_SUCCESS

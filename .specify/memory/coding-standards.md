@@ -27,9 +27,10 @@ to-markdown/
         constants.py       # ALL project constants (single source of truth)
       smart/               # LLM-powered features (optional)
         __init__.py
+        llm.py             # Gemini client wrapper
+        clean.py           # --clean flag: LLM artifact repair
         summary.py         # --summary flag: Gemini document summarization
         images.py          # --images flag: Gemini vision image description
-        llm.py             # Gemini client wrapper
   tests/
     fixtures/              # Test input files per format
       pdf/

@@ -1,4 +1,4 @@
-"""Conversion pipeline: extract -> compose frontmatter -> assemble -> write."""
+"""Conversion pipeline: extract -> compose frontmatter -> smart features -> assemble -> write."""
 
 import logging
 from pathlib import Path
@@ -19,6 +19,9 @@ def convert_file(
     output_path: Path | None = None,
     *,
     force: bool = False,
+    clean: bool = False,
+    summary: bool = False,
+    images: bool = False,
 ) -> Path:
     """Convert a file to Markdown with YAML frontmatter.
 
@@ -26,6 +29,9 @@ def convert_file(
         input_path: Path to the source file.
         output_path: Custom output path (file or directory). Defaults to input dir.
         force: If True, overwrite existing output file.
+        clean: If True, clean extraction artifacts via LLM.
+        summary: If True, generate a summary section via LLM.
+        images: If True, describe images via LLM vision.
 
     Returns:
         Path to the created .md file.
@@ -48,12 +54,46 @@ def convert_file(
         raise OutputExistsError(msg)
 
     logger.info("Extracting: %s", input_path.name)
-    result = extract_file(input_path)
+    result = extract_file(input_path, extract_images=images)
 
     logger.info("Composing frontmatter")
     frontmatter = compose_frontmatter(result.metadata, input_path)
+    content = result.content
+    format_type = result.metadata.get("format_type", input_path.suffix.lstrip("."))
 
-    markdown = frontmatter + "\n" + result.content
+    # Smart features: clean -> images -> summary
+    summary_section = ""
+    image_section = ""
+
+    if clean:
+        logger.info("Cleaning content via LLM")
+        from to_markdown.smart.clean import clean_content
+
+        content = clean_content(content, format_type)
+
+    if images and result.images:
+        logger.info("Describing %d images via LLM", len(result.images))
+        from to_markdown.smart.images import describe_images
+
+        section = describe_images(result.images)
+        if section:
+            image_section = "\n" + section
+
+    if summary:
+        logger.info("Generating summary via LLM")
+        from to_markdown.smart.summary import format_summary_section, summarize_content
+
+        summary_text = summarize_content(content, format_type)
+        if summary_text:
+            summary_section = format_summary_section(summary_text) + "\n"
+
+    # Assemble: frontmatter + [summary] + content + [images]
+    markdown = frontmatter + "\n"
+    if summary_section:
+        markdown += summary_section
+    markdown += content
+    if image_section:
+        markdown += image_section
 
     resolved_output.parent.mkdir(parents=True, exist_ok=True)
     resolved_output.write_text(markdown, encoding="utf-8")
