@@ -115,15 +115,17 @@ def handle_background(
     resolved = Path(input_path)
     is_batch = resolved.is_dir() or is_glob_pattern(input_path)
 
-    command_args = json.dumps({
-        "input_path": input_path,
-        "output_path": str(output) if output else None,
-        "force": force,
-        "clean": clean,
-        "summary": summary,
-        "images": images_flag,
-        "is_batch": is_batch,
-    })
+    command_args = json.dumps(
+        {
+            "input_path": input_path,
+            "output_path": str(output) if output else None,
+            "force": force,
+            "clean": clean,
+            "summary": summary,
+            "images": images_flag,
+            "is_batch": is_batch,
+        }
+    )
 
     task = store.create(input_path, command_args=command_args)
 

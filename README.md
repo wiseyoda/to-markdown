@@ -77,6 +77,34 @@ uv run to-markdown document.pdf --images
 uv run to-markdown docs/ --summary --clean
 ```
 
+### Background Processing
+
+```bash
+# Start a conversion in the background (returns task ID immediately)
+uv run to-markdown large-file.pdf --background
+
+# Short flag
+uv run to-markdown large-file.pdf --bg
+
+# Background with smart features
+uv run to-markdown large-file.pdf --bg --clean --summary
+
+# Background batch conversion
+uv run to-markdown docs/ --bg
+
+# Check task status
+uv run to-markdown --status <task-id>
+
+# List all recent tasks
+uv run to-markdown --status all
+
+# Cancel a running task
+uv run to-markdown --cancel <task-id>
+```
+
+Background tasks run as detached subprocesses. Status is stored in
+`~/.to-markdown/tasks.db` and auto-cleaned after 24 hours.
+
 ### Output
 
 Creates a `.md` file with YAML frontmatter and extracted content:
@@ -114,6 +142,10 @@ invoke file conversion programmatically.
 |------|-------------|
 | `convert_file` | Convert a single file to Markdown |
 | `convert_batch` | Convert all files in a directory |
+| `start_conversion` | Start a background conversion (returns task ID) |
+| `get_task_status` | Check status of a background task |
+| `list_tasks` | List all recent background tasks |
+| `cancel_task` | Cancel a running background task |
 | `list_formats` | List supported file formats |
 | `get_status` | Check version and feature availability |
 

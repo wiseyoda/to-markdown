@@ -128,7 +128,10 @@ def start_conversion(
     """
     try:
         return handle_start_conversion(
-            file_path, clean=clean, summary=summary, images=images,
+            file_path,
+            clean=clean,
+            summary=summary,
+            images=images,
         )
     except ValueError as exc:
         raise ToolError(str(exc)) from exc

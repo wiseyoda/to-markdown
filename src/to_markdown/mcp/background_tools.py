@@ -68,15 +68,17 @@ def handle_start_conversion(
     store = _get_task_store()
     is_batch = path.is_dir()
 
-    command_args = json.dumps({
-        "input_path": file_path,
-        "output_path": None,
-        "force": True,
-        "clean": clean,
-        "summary": summary,
-        "images": images,
-        "is_batch": is_batch,
-    })
+    command_args = json.dumps(
+        {
+            "input_path": file_path,
+            "output_path": None,
+            "force": True,
+            "clean": clean,
+            "summary": summary,
+            "images": images,
+            "is_batch": is_batch,
+        }
+    )
 
     task = store.create(file_path, command_args=command_args)
 

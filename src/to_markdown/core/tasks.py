@@ -36,11 +36,13 @@ class TaskStatus(Enum):
 _DONE_STATUSES = frozenset({TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.CANCELLED})
 
 # States eligible for cleanup (not pending or running)
-_CLEANABLE_STATUSES = frozenset({
-    TaskStatus.COMPLETED,
-    TaskStatus.FAILED,
-    TaskStatus.CANCELLED,
-})
+_CLEANABLE_STATUSES = frozenset(
+    {
+        TaskStatus.COMPLETED,
+        TaskStatus.FAILED,
+        TaskStatus.CANCELLED,
+    }
+)
 
 
 @dataclass
@@ -88,7 +90,7 @@ def _pid_is_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
         return True
-    except (OSError, ProcessLookupError):
+    except (OSError, ProcessLookupError):  # fmt: skip
         return False
 
 
@@ -166,9 +168,9 @@ class TaskStore:
         if not fields:
             return
         set_clause = ", ".join(f"{k} = ?" for k in fields)
-        values = list(fields.values()) + [task_id]
+        values = [*list(fields.values()), task_id]
         self._conn.execute(
-            f"UPDATE tasks SET {set_clause} WHERE id = ?",  # noqa: S608
+            f"UPDATE tasks SET {set_clause} WHERE id = ?",
             values,
         )
         self._conn.commit()
@@ -186,15 +188,11 @@ class TaskStore:
 
         Returns the number of tasks removed.
         """
-        cutoff = datetime.now(UTC)
-        cutoff_iso = cutoff.isoformat()
-
         # Find old tasks eligible for cleanup
         cleanable = tuple(s.value for s in _CLEANABLE_STATUSES)
         placeholders = ",".join("?" for _ in cleanable)
         cursor = self._conn.execute(
-            f"SELECT id FROM tasks WHERE status IN ({placeholders}) "  # noqa: S608
-            "AND created_at < ?",
+            f"SELECT id FROM tasks WHERE status IN ({placeholders}) AND created_at < ?",
             (*cleanable, _hours_ago_iso(max_age_hours)),
         )
         old_ids = [row[0] for row in cursor.fetchall()]
@@ -211,7 +209,7 @@ class TaskStore:
         # Delete from database
         id_placeholders = ",".join("?" for _ in old_ids)
         self._conn.execute(
-            f"DELETE FROM tasks WHERE id IN ({id_placeholders})",  # noqa: S608
+            f"DELETE FROM tasks WHERE id IN ({id_placeholders})",
             old_ids,
         )
         self._conn.commit()
@@ -274,7 +272,7 @@ _default_store: TaskStore | None = None
 
 def get_default_store() -> TaskStore:
     """Get or create the default TaskStore singleton."""
-    global _default_store  # noqa: PLW0603
+    global _default_store
     if _default_store is None:
         data_dir = os.environ.get("TO_MARKDOWN_DATA_DIR")
         if data_dir:

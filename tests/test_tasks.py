@@ -21,7 +21,6 @@ from to_markdown.core.constants import (
     TASK_STATUS_RUNNING,
 )
 
-
 # ---- Fixtures ----
 
 
@@ -160,9 +159,7 @@ class TestTaskStoreInit:
 
     def test_creates_tasks_table(self, store):
         conn = sqlite3.connect(store.db_path)
-        cursor = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'"
-        )
+        cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='tasks'")
         assert cursor.fetchone() is not None
         conn.close()
 
@@ -442,8 +439,6 @@ class TestGetDefaultStore:
         from to_markdown.core.tasks import TaskStore, get_default_store
 
         with patch.dict(os.environ, {"TO_MARKDOWN_DATA_DIR": str(tmp_path)}):
-            from to_markdown.core.tasks import _default_store
-
             # Reset singleton for test
             import to_markdown.core.tasks
 

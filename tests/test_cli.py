@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -318,7 +318,7 @@ class TestBackgroundFlag:
         sample.write_text("content")
 
         with patch("to_markdown.cli._get_store", return_value=store):
-            result = runner.invoke(app, [str(sample), "--background"])
+            runner.invoke(app, [str(sample), "--background"])
 
         tasks = store.list()
         assert len(tasks) == 1
@@ -400,7 +400,7 @@ class TestWorkerFlag:
         task = store.create("/path/to/file.pdf")
 
         with patch("to_markdown.cli._get_store", return_value=store):
-            result = runner.invoke(app, ["dummy", "--_worker", task.id])
+            runner.invoke(app, ["dummy", "--_worker", task.id])
 
         mock_run.assert_called_once()
         call_args = mock_run.call_args
@@ -504,7 +504,7 @@ class TestCancelFlag:
 
         with (
             patch("to_markdown.cli._get_store", return_value=store),
-            patch("os.kill") as mock_kill,
+            patch("os.kill"),
         ):
             result = runner.invoke(app, ["dummy", "--cancel", task.id])
 

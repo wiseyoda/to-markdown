@@ -48,7 +48,9 @@ MCP_SERVER_INSTRUCTIONS = (
     "Converts PDF, DOCX, XLSX, PPTX, HTML, images, and 70+ other formats "
     "to clean Markdown with YAML frontmatter metadata. "
     "Powered by Kreuzberg (Rust-based extraction). "
-    "Optional LLM features (--clean, --summary, --images) require GEMINI_API_KEY."
+    "Optional LLM features (--clean, --summary, --images) require GEMINI_API_KEY. "
+    "Background tools (start_conversion, get_task_status, list_tasks, cancel_task) "
+    "enable fire-and-forget conversions for long-running files."
 )
 MAX_MCP_OUTPUT_CHARS = 80_000
 

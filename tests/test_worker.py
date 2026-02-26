@@ -11,10 +11,7 @@ import pytest
 from to_markdown.core.constants import (
     TASK_DB_FILENAME,
     TASK_LOG_DIR,
-    TASK_STATUS_CANCELLED,
     TASK_STATUS_COMPLETED,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_RUNNING,
 )
 
 
@@ -128,14 +125,16 @@ class TestRunWorker:
 
         task = store.create(
             "/path/to/file.pdf",
-            command_args=json.dumps({
-                "input_path": "/path/to/file.pdf",
-                "output_path": None,
-                "force": False,
-                "clean": False,
-                "summary": False,
-                "images": False,
-            }),
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                }
+            ),
         )
         mock_convert.return_value = Path("/path/to/file.md")
 
@@ -154,14 +153,16 @@ class TestRunWorker:
 
         task = store.create(
             "/path/to/file.pdf",
-            command_args=json.dumps({
-                "input_path": "/path/to/file.pdf",
-                "output_path": None,
-                "force": False,
-                "clean": False,
-                "summary": False,
-                "images": False,
-            }),
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                }
+            ),
         )
         mock_convert.side_effect = RuntimeError("extraction failed")
 
@@ -180,14 +181,16 @@ class TestRunWorker:
 
         task = store.create(
             "/path/to/file.pdf",
-            command_args=json.dumps({
-                "input_path": "/path/to/file.pdf",
-                "output_path": None,
-                "force": False,
-                "clean": False,
-                "summary": False,
-                "images": False,
-            }),
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                }
+            ),
         )
         mock_convert.side_effect = OutputExistsError("/path/to/file.md")
 
@@ -213,14 +216,16 @@ class TestRunWorker:
 
         task = store.create(
             "/path/to/file.pdf",
-            command_args=json.dumps({
-                "input_path": "/path/to/file.pdf",
-                "output_path": None,
-                "force": False,
-                "clean": False,
-                "summary": False,
-                "images": False,
-            }),
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                }
+            ),
         )
 
         run_worker(task.id, store)
@@ -240,14 +245,16 @@ class TestRunWorker:
 
         task = store.create(
             "/path/to/file.pdf",
-            command_args=json.dumps({
-                "input_path": "/path/to/file.pdf",
-                "output_path": None,
-                "force": False,
-                "clean": False,
-                "summary": False,
-                "images": False,
-            }),
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                }
+            ),
         )
 
         # run_worker registers SIGTERM handler; the SystemExit should be caught
@@ -278,15 +285,17 @@ class TestRunWorkerBatch:
 
         task = store.create(
             "/path/to/docs",
-            command_args=json.dumps({
-                "input_path": "/path/to/docs",
-                "output_path": None,
-                "force": False,
-                "clean": False,
-                "summary": False,
-                "images": False,
-                "is_batch": True,
-            }),
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/docs",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                    "is_batch": True,
+                }
+            ),
         )
 
         run_worker(task.id, store)

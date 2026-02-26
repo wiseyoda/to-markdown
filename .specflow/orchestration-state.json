@@ -5,40 +5,45 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-26T16:03:35.347Z",
+  "last_updated": "2026-02-26T16:54:37.146Z",
   "orchestration": {
     "phase": {
       "id": null,
-      "number": null,
-      "name": null,
-      "branch": null,
-      "status": "not_started",
+      "number": "0110",
+      "name": "Background Processing",
+      "branch": "0110-background-processing",
+      "status": "in_progress",
       "goals": [
-        "Build MCP server with convert_file, convert_batch, list_formats, get_status tools",
-        "Create mcp.json config for Claude Code/Desktop integration",
-        "Create Claude Code skill definition for /convert",
-        "Document agent setup for Codex and Gemini",
-        "Ensure agent-friendly structured output from MCP tools",
-        "Tests for all MCP tool handlers"
+        "Task manager with SQLite store for lifecycle management",
+        "CLI --background/--bg flag for async conversion",
+        "CLI --status and --cancel commands",
+        "MCP tools: start_conversion, get_task_status, list_tasks, cancel_task",
+        "Background process management (fork, PID, signals)",
+        "Task retention/cleanup",
+        "Tests for all task lifecycle scenarios",
+        "README updated with background processing section"
       ],
       "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: Claude Code can invoke to-markdown via MCP tools end-to-end"
+      "userGateCriteria": "**USER GATE**: `--background` flag works; MCP `start_conversion` tool works from agent session"
     },
     "next_phase": {
       "number": "0110",
       "name": "Background Processing"
     },
     "step": {
-      "current": "design",
-      "index": 0,
-      "status": "not_started"
+      "current": "implement",
+      "index": 2,
+      "status": "complete"
     },
     "analyze": {
-      "iteration": 1,
-      "completedAt": 1772044159
+      "iteration": null,
+      "completedAt": 1772123667
     },
-    "implement": null,
+    "implement": {
+      "current_section": "",
+      "started_at": "2026-02-26T11:34:35-05:00"
+    },
     "progress": {
       "tasks_completed": 0,
       "tasks_total": 0,
