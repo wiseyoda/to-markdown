@@ -9,10 +9,14 @@ from pydantic import Field
 
 from to_markdown.core.constants import MCP_SERVER_INSTRUCTIONS, MCP_SERVER_NAME
 from to_markdown.mcp.tools import (
+    handle_cancel_task,
     handle_convert_batch,
     handle_convert_file,
     handle_get_status,
+    handle_get_task_status,
     handle_list_formats,
+    handle_list_tasks,
+    handle_start_conversion,
 )
 
 logger = logging.getLogger(__name__)
@@ -100,6 +104,88 @@ def get_status() -> str:
     (clean, summary, images) are available.
     """
     return handle_get_status()
+
+
+@mcp.tool()
+def start_conversion(
+    file_path: Annotated[
+        str, Field(description="Absolute path to the file or directory to convert")
+    ],
+    clean: Annotated[
+        bool, Field(description="Fix extraction artifacts via LLM (requires GEMINI_API_KEY)")
+    ] = False,
+    summary: Annotated[
+        bool, Field(description="Generate document summary via LLM (requires GEMINI_API_KEY)")
+    ] = False,
+    images: Annotated[
+        bool, Field(description="Describe images via LLM vision (requires GEMINI_API_KEY)")
+    ] = False,
+) -> str:
+    """Start a background file conversion and return a task ID immediately.
+
+    Use this for large files or batch conversions that may take a while.
+    Poll with get_task_status to check progress.
+    """
+    try:
+        return handle_start_conversion(
+            file_path,
+            clean=clean,
+            summary=summary,
+            images=images,
+        )
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
+    except Exception as exc:
+        logger.exception("start_conversion failed")
+        raise ToolError(f"Failed to start conversion: {exc}") from exc
+
+
+@mcp.tool()
+def get_task_status(
+    task_id: Annotated[str, Field(description="Task ID returned by start_conversion")],
+) -> str:
+    """Get the status of a background conversion task.
+
+    Returns task status, input/output paths, duration, and any errors.
+    """
+    try:
+        return handle_get_task_status(task_id)
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
+    except Exception as exc:
+        logger.exception("get_task_status failed")
+        raise ToolError(f"Failed to get task status: {exc}") from exc
+
+
+@mcp.tool()
+def list_tasks() -> str:
+    """List all recent background conversion tasks.
+
+    Returns a summary of all tasks from the last 24 hours, including
+    their status, input paths, and durations.
+    """
+    try:
+        return handle_list_tasks()
+    except Exception as exc:
+        logger.exception("list_tasks failed")
+        raise ToolError(f"Failed to list tasks: {exc}") from exc
+
+
+@mcp.tool()
+def cancel_task(
+    task_id: Annotated[str, Field(description="Task ID to cancel")],
+) -> str:
+    """Cancel a running background conversion task.
+
+    Sends SIGTERM to the worker process and marks the task as cancelled.
+    """
+    try:
+        return handle_cancel_task(task_id)
+    except ValueError as exc:
+        raise ToolError(str(exc)) from exc
+    except Exception as exc:
+        logger.exception("cancel_task failed")
+        raise ToolError(f"Failed to cancel task: {exc}") from exc
 
 
 def run_server() -> None:

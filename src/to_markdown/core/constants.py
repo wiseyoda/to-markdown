@@ -9,6 +9,7 @@ EXIT_ERROR = 1
 EXIT_UNSUPPORTED = 2
 EXIT_ALREADY_EXISTS = 3
 EXIT_PARTIAL = 4
+EXIT_BACKGROUND = 0  # Background task started successfully (same as success)
 
 # --- File Processing ---
 DEFAULT_OUTPUT_EXTENSION = ".md"
@@ -47,7 +48,9 @@ MCP_SERVER_INSTRUCTIONS = (
     "Converts PDF, DOCX, XLSX, PPTX, HTML, images, and 70+ other formats "
     "to clean Markdown with YAML frontmatter metadata. "
     "Powered by Kreuzberg (Rust-based extraction). "
-    "Optional LLM features (--clean, --summary, --images) require GEMINI_API_KEY."
+    "Optional LLM features (--clean, --summary, --images) require GEMINI_API_KEY. "
+    "Background tools (start_conversion, get_task_status, list_tasks, cancel_task) "
+    "enable fire-and-forget conversions for long-running files."
 )
 MAX_MCP_OUTPUT_CHARS = 80_000
 
@@ -65,6 +68,22 @@ to-markdown supports 76+ file formats via Kreuzberg (Rust-based extraction engin
 
 Note: OCR-based formats (images, scanned PDFs) require Tesseract to be installed.\
 """
+
+# --- Background Processing ---
+TASK_ID_LENGTH = 8  # First N hex chars of UUID4
+TASK_STORE_DIR = "~/.to-markdown"
+TASK_DB_FILENAME = "tasks.db"
+TASK_LOG_DIR = "logs"
+TASK_RETENTION_HOURS = 24
+TASK_LIST_MAX_RESULTS = 100
+WORKER_FLAG = "--_worker"
+
+# TaskStatus enum values (also used in SQLite)
+TASK_STATUS_PENDING = "pending"
+TASK_STATUS_RUNNING = "running"
+TASK_STATUS_COMPLETED = "completed"
+TASK_STATUS_FAILED = "failed"
+TASK_STATUS_CANCELLED = "cancelled"
 
 # --- LLM Prompts ---
 CLEAN_PROMPT = """\

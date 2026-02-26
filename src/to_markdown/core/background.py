@@ -1,0 +1,144 @@
+"""CLI handlers for background processing flags (--background, --status, --cancel)."""
+
+import contextlib
+import json
+import logging
+import os
+import signal
+from pathlib import Path
+
+import typer
+
+from to_markdown.core.constants import (
+    APP_NAME,
+    EXIT_BACKGROUND,
+    EXIT_ERROR,
+    EXIT_SUCCESS,
+    TASK_RETENTION_HOURS,
+)
+from to_markdown.core.display import is_glob_pattern
+
+logger = logging.getLogger(APP_NAME)
+
+
+def get_store():
+    """Get the default TaskStore (lazy import)."""
+    from to_markdown.core.tasks import get_default_store
+
+    return get_default_store()
+
+
+def run_maintenance(store) -> None:
+    """Run orphan check and cleanup on the task store."""
+    store.check_orphans()
+    store.cleanup(max_age_hours=TASK_RETENTION_HOURS)
+
+
+def handle_status(status_id: str, store) -> None:
+    """Handle --status flag."""
+    run_maintenance(store)
+
+    if status_id == "all":
+        tasks = store.list()
+        if not tasks:
+            typer.echo("No tasks found.")
+            raise typer.Exit(EXIT_SUCCESS)
+
+        typer.echo(f"{'ID':<10} {'Status':<12} {'Input':<40} {'Duration'}")
+        typer.echo("-" * 75)
+        for task in tasks:
+            input_name = Path(task.input_path).name
+            duration = f"{task.duration:.1f}s" if task.duration is not None else "-"
+            typer.echo(f"{task.id:<10} {task.status.value:<12} {input_name:<40} {duration}")
+        raise typer.Exit(EXIT_SUCCESS)
+
+    task = store.get(status_id)
+    if task is None:
+        typer.echo(f"Task not found: {status_id}")
+        raise typer.Exit(EXIT_ERROR)
+
+    typer.echo(f"Task {task.id}")
+    typer.echo(f"  Status:  {task.status.value}")
+    typer.echo(f"  Input:   {task.input_path}")
+    if task.output_path:
+        typer.echo(f"  Output:  {task.output_path}")
+    if task.started_at:
+        typer.echo(f"  Started: {task.started_at}")
+    if task.duration is not None:
+        typer.echo(f"  Duration: {task.duration:.1f}s")
+    if task.error:
+        typer.echo(f"  Error:   {task.error}")
+    raise typer.Exit(EXIT_SUCCESS)
+
+
+def handle_cancel(cancel_id: str, store) -> None:
+    """Handle --cancel flag."""
+    run_maintenance(store)
+
+    task = store.get(cancel_id)
+    if task is None:
+        typer.echo(f"Task not found: {cancel_id}")
+        raise typer.Exit(EXIT_ERROR)
+
+    if task.is_done:
+        typer.echo(f"Task {task.id} already {task.status.value}")
+        raise typer.Exit(EXIT_SUCCESS)
+
+    if task.pid is not None:
+        with contextlib.suppress(OSError, ProcessLookupError):
+            os.kill(task.pid, signal.SIGTERM)
+
+    from to_markdown.core.tasks import TaskStatus, _now_iso
+
+    store.update(
+        task.id,
+        status=TaskStatus.CANCELLED.value,
+        completed_at=_now_iso(),
+    )
+    typer.echo(f"Cancelled task {task.id}")
+    raise typer.Exit(EXIT_SUCCESS)
+
+
+def handle_background(
+    input_path: str,
+    output: Path | None,
+    *,
+    force: bool,
+    clean: bool,
+    summary: bool,
+    images_flag: bool,
+    store,
+) -> None:
+    """Handle --background flag."""
+    run_maintenance(store)
+
+    resolved = Path(input_path)
+    is_batch = resolved.is_dir() or is_glob_pattern(input_path)
+
+    command_args = json.dumps(
+        {
+            "input_path": input_path,
+            "output_path": str(output) if output else None,
+            "force": force,
+            "clean": clean,
+            "summary": summary,
+            "images": images_flag,
+            "is_batch": is_batch,
+        }
+    )
+
+    task = store.create(input_path, command_args=command_args)
+
+    from to_markdown.core.worker import spawn_worker
+
+    spawn_worker(task.id, store)
+    typer.echo(task.id)
+    raise typer.Exit(EXIT_BACKGROUND)
+
+
+def handle_worker(task_id: str, store) -> None:
+    """Handle --_worker flag (internal, hidden)."""
+    from to_markdown.core.worker import run_worker
+
+    run_worker(task_id, store)
+    raise typer.Exit(EXIT_SUCCESS)

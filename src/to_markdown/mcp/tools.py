@@ -12,6 +12,15 @@ from to_markdown.core.constants import (
     SUPPORTED_FORMATS_DESCRIPTION,
 )
 
+# Re-export background tool handlers for unified import surface
+from to_markdown.mcp.background_tools import (  # noqa: F401
+    _get_task_store,
+    handle_cancel_task,
+    handle_get_task_status,
+    handle_list_tasks,
+    handle_start_conversion,
+)
+
 logger = logging.getLogger(__name__)
 
 

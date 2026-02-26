@@ -48,7 +48,7 @@ This allows inserting urgent work without renumbering existing phases.
 | 0040 | Smart Features | ✅ Complete | **USER GATE**: `--summary` and `--images` flags work correctly with Gemini |
 | 0050 | Batch Processing | ✅ Complete | Directory conversion with mixed formats; progress reporting; all tests pass |
 | 0100 | MCP Server & AI Agent Skills | ✅ Complete | **USER GATE**: Claude Code can invoke to-markdown via MCP tools end-to-end |
-| 0110 | Background Processing | ⬜ Not Started | **USER GATE**: `--background` flag works; MCP `start_conversion` tool works from agent session |
+| 0110 | Background Processing | ✅ Complete | **USER GATE**: `--background` flag works; MCP `start_conversion` tool works from agent session |
 | 0120 | Easy Install | ⬜ Not Started | **USER GATE**: Fresh macOS/Windows machine: clone, run install script, `to-markdown` works |
 | 0130 | Production Readiness & Docs | ⬜ Not Started | **USER GATE**: README polished, CI passes, v1.0.0 tagged, user approves for release |
 

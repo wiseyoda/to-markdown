@@ -8,7 +8,6 @@ from typing import Annotated
 import typer
 
 from to_markdown import __version__
-from to_markdown.core.batch import BatchResult
 from to_markdown.core.constants import (
     APP_NAME,
     EXIT_ALREADY_EXISTS,
@@ -16,8 +15,8 @@ from to_markdown.core.constants import (
     EXIT_SUCCESS,
     EXIT_UNSUPPORTED,
     GEMINI_API_KEY_ENV,
-    GLOB_CHARS,
 )
+from to_markdown.core.display import is_glob_pattern, run_batch
 from to_markdown.core.extraction import ExtractionError, UnsupportedFormatError
 from to_markdown.core.pipeline import OutputExistsError, convert_file
 
@@ -81,81 +80,11 @@ def _validate_api_key(clean: bool, summary: bool, images: bool) -> None:
         raise typer.Exit(EXIT_ERROR)
 
 
-def _is_glob_pattern(value: str) -> bool:
-    """Check if a string contains glob pattern characters."""
-    return any(c in value for c in GLOB_CHARS)
+def _get_store():
+    """Get the default TaskStore (lazy import)."""
+    from to_markdown.core.background import get_store
 
-
-def _print_batch_summary(result: BatchResult, verbose: int) -> None:
-    """Print batch conversion summary."""
-    parts = [f"Converted {len(result.succeeded)} file(s)"]
-    if result.skipped:
-        parts.append(f"{len(result.skipped)} skipped")
-    if result.failed:
-        parts.append(f"{len(result.failed)} failed")
-    typer.echo(", ".join(parts))
-
-    if verbose >= 1 and result.failed:
-        for path, error in result.failed:
-            typer.echo(f"  FAILED: {path.name} - {error}", err=True)
-
-
-def _run_batch(
-    input_str: str,
-    output: Path | None,
-    *,
-    recursive: bool,
-    force: bool,
-    clean: bool,
-    summary: bool,
-    images: bool,
-    fail_fast: bool,
-    quiet: bool,
-    verbose: int,
-) -> None:
-    """Run batch conversion for directory or glob input."""
-    from to_markdown.core.batch import convert_batch, discover_files, resolve_glob
-
-    input_path = Path(input_str)
-    is_glob = _is_glob_pattern(input_str)
-
-    if is_glob:
-        files = resolve_glob(input_str)
-        if not files:
-            logger.error("No files matched pattern: %s", input_str)
-            raise typer.Exit(EXIT_ERROR)
-        batch_root = None
-    else:
-        if not input_path.exists():
-            logger.error("Directory not found: %s", input_path)
-            raise typer.Exit(EXIT_ERROR)
-        files = discover_files(input_path, recursive=recursive)
-        if not files:
-            logger.error("No supported files found in: %s", input_path)
-            raise typer.Exit(EXIT_ERROR)
-        batch_root = input_path.resolve()
-
-    # Validate -o is a directory (or doesn't exist) for batch mode
-    if output is not None and output.exists() and not output.is_dir():
-        logger.error("Output must be a directory for batch mode: %s", output)
-        raise typer.Exit(EXIT_ERROR)
-
-    result = convert_batch(
-        files,
-        output_dir=output,
-        batch_root=batch_root,
-        force=force,
-        clean=clean,
-        summary=summary,
-        images=images,
-        fail_fast=fail_fast,
-        quiet=quiet,
-    )
-
-    if not quiet:
-        _print_batch_summary(result, verbose)
-
-    raise typer.Exit(result.exit_code)
+    return get_store()
 
 
 @app.command()
@@ -204,6 +133,22 @@ def main(
         bool,
         typer.Option("--fail-fast", help="Stop batch conversion on first error."),
     ] = False,
+    background: Annotated[
+        bool,
+        typer.Option("--background", "--bg", help="Run conversion in background."),
+    ] = False,
+    status: Annotated[
+        str | None,
+        typer.Option("--status", help="Show task status (task ID or 'all')."),
+    ] = None,
+    cancel: Annotated[
+        str | None,
+        typer.Option("--cancel", help="Cancel a running background task."),
+    ] = None,
+    _worker: Annotated[
+        str | None,
+        typer.Option("--_worker", help="Internal worker flag.", hidden=True),
+    ] = None,
     verbose: Annotated[
         int,
         typer.Option("--verbose", "-v", count=True, help="Increase verbosity (-v or -vv)."),
@@ -229,13 +174,56 @@ def main(
     """
     _configure_logging(verbose, quiet)
     _load_dotenv()
+
+    # Mutual exclusivity check
+    bg_flags = sum(bool(x) for x in [background, status, cancel])
+    if bg_flags > 1:
+        logger.error("--background, --status, and --cancel are mutually exclusive")
+        raise typer.Exit(EXIT_ERROR)
+
+    # Background processing flags (lazy import, early returns)
+    if _worker is not None or status is not None or cancel is not None or background:
+        from to_markdown.core.background import (
+            handle_background,
+            handle_cancel,
+            handle_status,
+            handle_worker,
+        )
+
+        store = _get_store()
+
+        if _worker is not None:
+            handle_worker(_worker, store)
+            return
+
+        if status is not None:
+            handle_status(status, store)
+            return
+
+        if cancel is not None:
+            handle_cancel(cancel, store)
+            return
+
+        _validate_api_key(clean, summary, images)
+        handle_background(
+            input_path,
+            output,
+            force=force,
+            clean=clean,
+            summary=summary,
+            images_flag=images,
+            store=store,
+        )
+        return
+
+    # Standard conversion mode
     _validate_api_key(clean, summary, images)
 
     resolved = Path(input_path)
 
     # Batch mode: directory or glob pattern
-    if resolved.is_dir() or _is_glob_pattern(input_path):
-        _run_batch(
+    if resolved.is_dir() or is_glob_pattern(input_path):
+        run_batch(
             input_path,
             output,
             recursive=not no_recursive,
@@ -247,7 +235,7 @@ def main(
             quiet=quiet,
             verbose=verbose,
         )
-        return  # _run_batch raises typer.Exit
+        return  # run_batch raises typer.Exit
 
     # Single file mode (existing behavior)
     try:
