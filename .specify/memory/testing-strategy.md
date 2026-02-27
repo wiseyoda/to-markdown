@@ -138,10 +138,25 @@ When code changes affect behavior, the following must be updated in the same com
 
 No drift. Ever.
 
+## Phase 0125 Additions
+
+Phase 0125 brought the test suite to **505 tests** (143 new + 362 existing) with the following
+testing patterns:
+
+- **Async pattern testing**: pytest-asyncio (`asyncio_mode = "auto"`) enables native async test
+  functions for testing `generate_async()`, `clean_content_async()`, `describe_images_async()`,
+  and the `_build_content_async()` pipeline orchestrator
+- **Sanitization test coverage**: Frozen character sets (SANITIZE_ZERO_WIDTH_CHARS,
+  SANITIZE_CONTROL_CHARS, SANITIZE_DIRECTIONAL_CHARS) tested for completeness and immutability;
+  SanitizeResult dataclass fields (content, chars_removed, was_modified) verified for all code paths
+- **Parallel LLM test strategies**: Concurrent chunk dispatch tested with mocked
+  `asyncio.Semaphore` to verify max concurrency limits; single-chunk optimization path tested
+  separately; `asyncio.gather()` for clean+images parallelism tested with controlled mock ordering
+
 ## Running Tests
 
 ```bash
-# All tests
+# All tests (505 tests)
 uv run pytest
 
 # Specific module
@@ -152,4 +167,4 @@ uv run pytest --cov=to_markdown
 ```
 
 ---
-*Version: 1.1.0 | Last Updated: 2026-02-25*
+*Version: 1.2.0 | Last Updated: 2026-02-27*

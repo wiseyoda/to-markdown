@@ -51,7 +51,7 @@ This allows inserting urgent work without renumbering existing phases.
 | 0110 | Background Processing | ✅ Complete | **USER GATE**: `--background` flag works; MCP `start_conversion` tool works from agent session |
 | 0120 | Easy Install | ✅ Complete | **USER GATE**: Fresh macOS/Windows machine: clone, run install script, `to-markdown` works |
 | 0125 | Smart Pipeline Improvements | ✅ Complete | **USER GATE**: Clean runs by default, sanitization filters prompt injection, image descriptions parallelized |
-| 0130 | Production Readiness & Docs | ⬜ Not Started | **USER GATE**: README polished, CI passes, v1.0.0 tagged, user approves for release |
+| 0130 | Production Readiness & Docs | ✅ Complete | **USER GATE**: README polished, CI passes, v1.0.0 tagged, user approves for release |
 
 **Legend**: ⬜ Not Started | 🔄 In Progress | ✅ Complete | **USER GATE** = Requires user verification
 

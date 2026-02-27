@@ -4,6 +4,124 @@ This file contains summaries of completed phases, archived by `specflow phase cl
 
 ---
 
+## 0130 - Production Readiness & Docs
+
+**Completed**: 2026-02-27
+
+# Phase 0130: Production Readiness & Documentation
+
+**Goal**: Clean up all documentation, finalize governance artifacts, and prepare the
+project for production deployment and public release.
+
+**Scope**:
+
+### 1. README Overhaul
+- Rewrite README.md as a polished, public-facing document
+- Add badges (Python version, license, tests passing)
+- Feature highlights with examples
+- Clear install instructions (link to INSTALL.md for detailed guide)
+- Usage examples covering all major workflows
+- Architecture overview (brief, with diagram if helpful)
+- Contributing section
+- License section
+
+### 2. Documentation Cleanup
+- Audit and update all memory documents (constitution, coding-standards,
+  testing-strategy, tech-stack, glossary)
+- Remove stale references to old phases or outdated decisions
+- Ensure all decision records (D-1 through D-62+) are accurate
+- Archive or remove any orphaned spec/plan files
+- Verify ROADMAP.md reflects actual project state
+
+### 3. Code Cleanup
+- Audit all source files for TODO/FIXME/HACK comments — resolve or document
+- Ensure all public functions have docstrings
+- Run full lint + format pass, fix any warnings
+- Verify no dead code or unused imports
+- Confirm all constants are in constants.py (no strays)
+- Verify no files exceed 300-line limit
+
+### 4. Test Suite Hardening
+- Run full test suite, fix any flaky tests
+- Verify coverage meets acceptable threshold
+- Add any missing edge case tests identified during audit
+- Ensure all test fixtures are programmatically generated (no binary blobs in repo)
+- Update testing-strategy.md with final test count and coverage
+
+### 5. CI/CD Setup
+- GitHub Actions workflow for CI (lint, test, format check on PR)
+- Python version matrix (3.14+)
+- Optional: publish to PyPI workflow (manual trigger)
+- Badge generation for README
+
+### 6. Release Preparation
+- Set version to 1.0.0 in pyproject.toml
+- Write CHANGELOG.md summarizing all phases
+- Tag v1.0.0 release
+- Create GitHub release with notes
+- Update tech-stack.md distribution section
+
+### 7. Governance Finalization
+- Update constitution version if needed
+- Close out any open decisions
+- Final memory document reconciliation
+- Mark all phases complete in ROADMAP.md
+
+**Deliverables**:
+- [ ] README.md rewritten for public audience
+- [ ] All memory documents audited and current
+- [ ] Code audit complete (no TODOs, dead code, or lint warnings)
+- [ ] Test suite passing with documented coverage
+- [ ] GitHub Actions CI workflow
+- [ ] CHANGELOG.md
+- [ ] Version 1.0.0 tagged and released
+- [ ] All governance docs finalized
+
+**Verification Gate**: **USER GATE** - User verifies: (1) README renders cleanly on
+GitHub with all badges visible, (2) CI passes on a test PR, (3) `uv run pytest` and
+`uv run ruff check` both clean, (4) `uv run pytest --cov=to_markdown --cov-fail-under=80`
+passes, (5) pyproject.toml shows version "1.0.0". User approves project is ready for
+public/production use.
+
+**Estimated Complexity**: Medium (breadth over depth, mostly documentation and cleanup)
+
+## How to Test (Phase 0130: Production Readiness)
+
+1. **README Review**:
+   - Visit the GitHub repo page after pushing
+   - Verify README renders clearly with badges (Python, license, CI)
+   - Confirm all sections present: overview, install, usage, MCP, exit codes, dev, license
+   - Expected: Non-technical developer understands purpose within 2 minutes
+
+2. **CI Validation**:
+   - Open a PR to main with the phase changes
+   - Verify GitHub Actions runs lint, format, test, and coverage checks
+   - Expected: All checks pass (green)
+
+3. **Code Quality**:
+   ```bash
+   uv run ruff check              # Expected: 0 errors
+   uv run ruff format --check     # Expected: all files formatted
+   uv run pytest                  # Expected: 505+ tests pass
+   uv run pytest --cov=to_markdown --cov-fail-under=80  # Expected: passes
+   ```
+
+4. **Release Files**:
+   ```bash
+   cat CHANGELOG.md | head -5     # Expected: v1.0.0 header
+   cat LICENSE | head -3          # Expected: MIT License text
+   grep version pyproject.toml    # Expected: version = "1.0.0"
+   ```
+
+5. **Governance Docs**:
+   ```bash
+   grep "Gemini" .specify/memory/constitution.md  # Expected: "Gemini 2.5 Flash (GA)"
+   grep "Version" .specify/memory/testing-strategy.md  # Expected: 1.2.0
+   grep "Version" .specify/memory/glossary.md  # Expected: 2.1.0
+   ```
+
+---
+
 ## 0125 - Smart Pipeline Improvements
 
 **Completed**: 2026-02-27

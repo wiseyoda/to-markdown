@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-27T14:36:09.856Z",
+  "last_updated": "2026-02-27T15:09:38.096Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,18 +14,19 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "Clean by default when GEMINI_API_KEY is set with --no-clean opt-out",
-        "Prompt injection filtering (hidden text, control chars, Unicode abuse) with --no-sanitize opt-out",
-        "Parallel LLM calls via asyncio for image descriptions and clean chunks (~4x speedup)"
+        "README overhaul for public-facing documentation",
+        "Documentation cleanup and memory document audit",
+        "Code cleanup - resolve TODOs, docstrings, lint, dead code, constants, 300-line limit",
+        "Test suite hardening - fix flaky tests, coverage, edge cases",
+        "CI/CD setup with GitHub Actions",
+        "Release preparation - v1.0.0, CHANGELOG, GitHub release",
+        "Governance finalization - constitution, decisions, memory reconciliation"
       ],
       "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: Clean runs by default, sanitization filters prompt injection, image descriptions parallelized"
+      "userGateCriteria": "**USER GATE**: README polished, CI passes, v1.0.0 tagged, user approves for release"
     },
-    "next_phase": {
-      "number": "0130",
-      "name": "Production Readiness & Docs"
-    },
+    "next_phase": null,
     "step": {
       "current": "design",
       "index": 0,
@@ -33,7 +34,7 @@
     },
     "analyze": {
       "iteration": null,
-      "completedAt": 1772123667
+      "completedAt": 1772204070
     },
     "implement": null,
     "progress": {
@@ -142,6 +143,15 @@
         "phase_name": "Smart Pipeline Improvements",
         "branch": "0125-smart-pipeline-improvements",
         "completed_at": "2026-02-27T14:36:09.856Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0130",
+        "phase_name": "Production Readiness & Docs",
+        "branch": "0130-production-readiness-docs",
+        "completed_at": "2026-02-27T15:09:38.095Z",
         "tasks_completed": 0,
         "tasks_total": 0
       }

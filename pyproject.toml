@@ -1,6 +1,6 @@
 [project]
 name = "to-markdown"
-version = "0.1.0"
+version = "1.0.0"
 description = "CLI file-to-Markdown converter optimized for LLM consumption"
 readme = "README.md"
 requires-python = ">=3.14"
@@ -52,6 +52,13 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+
+[tool.coverage.run]
+source = ["src/to_markdown"]
+
+[tool.coverage.report]
+fail_under = 80
+omit = ["*/tests/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

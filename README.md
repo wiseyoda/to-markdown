@@ -1,25 +1,44 @@
 # to-markdown
 
-CLI file-to-Markdown converter optimized for LLM consumption. Wraps
-[Kreuzberg](https://github.com/Goldziher/kreuzberg) (76+ formats) with YAML
-frontmatter and a polished CLI.
+[![Python 3.14+](https://img.shields.io/badge/python-3.14+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/wiseyoda/to-markdown/actions/workflows/ci.yml/badge.svg)](https://github.com/wiseyoda/to-markdown/actions/workflows/ci.yml)
 
-## Quick Start (Non-Technical Users)
+CLI file-to-Markdown converter optimized for LLM consumption. Convert PDF, DOCX,
+PPTX, XLSX, HTML, images, and 70+ other formats into clean Markdown with YAML
+frontmatter metadata.
 
-See **[INSTALL.md](INSTALL.md)** for step-by-step installation instructions.
+## What It Does
+
+to-markdown wraps [Kreuzberg](https://github.com/Goldziher/kreuzberg) (Rust-based
+extraction for 76+ formats) with an LLM-optimized output layer:
+
+- **YAML frontmatter** with document metadata (title, author, pages, format, timestamps)
+- **Smart features** via Google Gemini — automatic content cleaning, document summaries,
+  and image descriptions
+- **Content sanitization** strips non-visible Unicode (zero-width, control, directional
+  chars) to prevent prompt injection
+- **Batch processing** with glob patterns, progress bars, and partial-success reporting
+- **Background processing** for large files via detached subprocesses
+- **MCP server** for AI agent integration (Claude Code, Claude Desktop, Codex CLI,
+  Gemini CLI)
+
+## Quick Start
 
 ```bash
 git clone https://github.com/wiseyoda/to-markdown.git
 cd to-markdown
-./install.sh        # macOS
-# .\install.ps1     # Windows
+uv sync                   # Core only
+uv run to-markdown document.pdf
 ```
 
-## Install (Developers)
+For step-by-step installation (including non-technical users), see **[INSTALL.md](INSTALL.md)**.
+
+To enable smart features (cleaning, summaries, image descriptions):
 
 ```bash
-uv sync                   # Core only
-uv sync --all-extras      # Everything (LLM, MCP, dev tools)
+uv sync --extra llm
+export GEMINI_API_KEY=your-key-here
 ```
 
 ## Usage
@@ -27,108 +46,45 @@ uv sync --all-extras      # Everything (LLM, MCP, dev tools)
 ### Single File
 
 ```bash
-# Convert a file (creates file.md next to the input)
-uv run to-markdown document.pdf
-
-# Custom output path
-uv run to-markdown document.pdf -o output/
-
-# Overwrite existing output
-uv run to-markdown document.pdf --force
-
-# Verbose output
-uv run to-markdown document.pdf -v
-
-# Quiet mode (errors only)
-uv run to-markdown document.pdf -q
+uv run to-markdown document.pdf            # Creates document.md
+uv run to-markdown document.pdf -o output/ # Custom output path
+uv run to-markdown document.pdf --force    # Overwrite existing
+uv run to-markdown document.pdf -v         # Verbose output
+uv run to-markdown document.pdf -q         # Quiet (errors only)
 ```
 
 ### Batch Processing
 
 ```bash
-# Convert all supported files in a directory (recursive by default)
-uv run to-markdown docs/
-
-# Non-recursive (top-level files only)
-uv run to-markdown docs/ --no-recursive
-
-# Convert files matching a glob pattern
-uv run to-markdown "docs/*.pdf"
-
-# Output to a different directory (mirrors input structure)
-uv run to-markdown docs/ -o output/
-
-# Stop on first error
-uv run to-markdown docs/ --fail-fast
-
-# Force overwrite all existing output files
-uv run to-markdown docs/ --force
-```
-
-Batch mode shows a progress bar and prints a summary when done:
-
-```
-Converted 8 file(s), 2 skipped, 1 failed
+uv run to-markdown docs/                   # All files in directory (recursive)
+uv run to-markdown docs/ --no-recursive    # Top-level only
+uv run to-markdown "docs/*.pdf"            # Glob pattern
+uv run to-markdown docs/ -o output/        # Output to different directory
+uv run to-markdown docs/ --fail-fast       # Stop on first error
 ```
 
 ### Smart Features
-
-Requires `GEMINI_API_KEY` (install with `uv sync --extra llm`):
 
 Content cleaning runs automatically when `GEMINI_API_KEY` is set. Use `--no-clean`
 to disable.
 
 ```bash
-# Generate document summary
-uv run to-markdown document.pdf --summary
-
-# Describe images via LLM vision
-uv run to-markdown document.pdf --images
-
-# Disable automatic content cleaning
-uv run to-markdown document.pdf --no-clean
-
-# Smart features work with batch mode too
-uv run to-markdown docs/ --summary
+uv run to-markdown doc.pdf --summary       # Generate document summary
+uv run to-markdown doc.pdf --images        # Describe images via LLM vision
+uv run to-markdown doc.pdf --no-clean      # Disable automatic cleaning
+uv run to-markdown doc.pdf --no-sanitize   # Disable Unicode sanitization
 ```
-
-### Sanitization
-
-to-markdown automatically sanitizes extracted content by stripping non-visible
-characters (zero-width Unicode, control characters, bidirectional overrides) that
-could be used for prompt injection. Use `--no-sanitize` to disable.
 
 ### Background Processing
 
 ```bash
-# Start a conversion in the background (returns task ID immediately)
-uv run to-markdown large-file.pdf --background
-
-# Short flag
-uv run to-markdown large-file.pdf --bg
-
-# Background with smart features
-uv run to-markdown large-file.pdf --bg --summary
-
-# Background batch conversion
-uv run to-markdown docs/ --bg
-
-# Check task status
-uv run to-markdown --status <task-id>
-
-# List all recent tasks
-uv run to-markdown --status all
-
-# Cancel a running task
-uv run to-markdown --cancel <task-id>
+uv run to-markdown large.pdf --bg          # Returns task ID immediately
+uv run to-markdown --status <task-id>      # Check task status
+uv run to-markdown --status all            # List all recent tasks
+uv run to-markdown --cancel <task-id>      # Cancel a running task
 ```
 
-Background tasks run as detached subprocesses. Status is stored in
-`~/.to-markdown/tasks.db` and auto-cleaned after 24 hours.
-
-### Output
-
-Creates a `.md` file with YAML frontmatter and extracted content:
+### Output Format
 
 ```markdown
 ---
@@ -147,28 +103,17 @@ Extracted document content in Markdown...
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Error (file not found, extraction failed, all files failed) |
-| 2 | Unsupported file format (single file only) |
+| 1 | Error (file not found, extraction failed) |
+| 2 | Unsupported file format |
 | 3 | Output file already exists (use `--force`) |
-| 4 | Partial success (batch: some files succeeded, some failed) |
+| 4 | Partial success (batch: some files failed) |
 
 ## AI Agent Integration (MCP)
 
-to-markdown includes an MCP (Model Context Protocol) server so AI agents can
-invoke file conversion programmatically.
+to-markdown includes an MCP server for AI agent integration via stdio transport.
 
-### Available Tools
-
-| Tool | Description |
-|------|-------------|
-| `convert_file` | Convert a single file to Markdown |
-| `convert_batch` | Convert all files in a directory |
-| `start_conversion` | Start a background conversion (returns task ID) |
-| `get_task_status` | Check status of a background task |
-| `list_tasks` | List all recent background tasks |
-| `cancel_task` | Cancel a running background task |
-| `list_formats` | List supported file formats |
-| `get_status` | Check version and feature availability |
+**Available tools**: `convert_file`, `convert_batch`, `start_conversion`,
+`get_task_status`, `list_tasks`, `cancel_task`, `list_formats`, `get_status`
 
 ### Claude Code
 
@@ -195,70 +140,25 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### OpenAI Codex CLI
+### Codex CLI / Gemini CLI
 
-Add to `.codex/config.toml` or `~/.codex/config.toml`:
+See [MCP setup docs](https://modelcontextprotocol.io/) for your tool's configuration
+format. The server command is the same:
 
-```toml
-[mcp_servers.to-markdown]
-command = "uv"
-args = ["--directory", "/path/to/to-markdown", "run", "--extra", "mcp",
-        "python", "-m", "to_markdown.mcp"]
+```bash
+uv --directory /path/to/to-markdown run --extra mcp python -m to_markdown.mcp
 ```
-
-### Google Gemini CLI
-
-Add to `~/.gemini/settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "to-markdown": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/to-markdown", "run", "--extra", "mcp",
-               "python", "-m", "to_markdown.mcp"]
-    }
-  }
-}
-```
-
-## How to Test (Phase 0100: MCP Server)
-
-1. Install MCP extra:
-   ```bash
-   uv sync --extra mcp
-   ```
-
-2. Verify the server starts:
-   ```bash
-   uv run python -m to_markdown.mcp &
-   # Should start without errors (it waits for stdio input)
-   kill %1
-   ```
-
-3. Add server to Claude Code:
-   ```bash
-   claude mcp add to-markdown -- \
-     uv --directory $(pwd) run --extra mcp python -m to_markdown.mcp
-   ```
-
-4. Test from Claude Code (in a new session):
-   - Ask: "Use to-markdown to convert tests/fixtures/pdf/basic.pdf"
-   - Expected: Agent calls `convert_file` tool, returns markdown with frontmatter
-
-5. Test list_formats:
-   - Ask: "What formats does to-markdown support?"
-   - Expected: Agent calls `list_formats` tool, returns format categories
-
-6. Test get_status:
-   - Ask: "What's the status of to-markdown?"
-   - Expected: Agent calls `get_status`, shows version and LLM availability
 
 ## Development
 
 ```bash
-uv sync --all-extras
-uv run pytest
-uv run ruff check
-uv run ruff format --check
+uv sync --all-extras          # Install everything (dev, llm, mcp)
+uv run pytest                 # Run tests (505+)
+uv run ruff check             # Lint
+uv run ruff format --check    # Format check
+uv run pytest --cov=to_markdown --cov-fail-under=80  # Coverage
 ```
+
+## License
+
+[MIT](LICENSE)
