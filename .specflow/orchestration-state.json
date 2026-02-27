@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-26T17:02:26.363Z",
+  "last_updated": "2026-02-27T13:48:17.310Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,22 +14,20 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "Task manager with SQLite store for lifecycle management",
-        "CLI --background/--bg flag for async conversion",
-        "CLI --status and --cancel commands",
-        "MCP tools: start_conversion, get_task_status, list_tasks, cancel_task",
-        "Background process management (fork, PID, signals)",
-        "Task retention/cleanup",
-        "Tests for all task lifecycle scenarios",
-        "README updated with background processing section"
+        "One-command macOS install (install.sh)",
+        "One-command Windows install (install.ps1)",
+        "Interactive configuration wizard (--setup)",
+        "Step-by-step INSTALL.md for non-technical users",
+        "Clean uninstall scripts",
+        "Tests for install logic and config wizard"
       ],
       "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: `--background` flag works; MCP `start_conversion` tool works from agent session"
+      "userGateCriteria": "**USER GATE**: Fresh macOS/Windows machine: clone, run install script, `to-markdown` works"
     },
     "next_phase": {
-      "number": "0120",
-      "name": "Easy Install"
+      "number": "0130",
+      "name": "Production Readiness & Docs"
     },
     "step": {
       "current": "design",
@@ -129,6 +127,15 @@
         "phase_name": "Background Processing",
         "branch": "0110-background-processing",
         "completed_at": "2026-02-26T17:02:26.363Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0120",
+        "phase_name": "Easy Install",
+        "branch": "0120-easy-install",
+        "completed_at": "2026-02-27T13:48:17.309Z",
         "tasks_completed": 0,
         "tasks_total": 0
       }
