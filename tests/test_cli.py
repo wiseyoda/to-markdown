@@ -17,7 +17,7 @@ from to_markdown.core.constants import (
     TASK_LOG_DIR,
 )
 
-runner = CliRunner()
+runner = CliRunner(env={"NO_COLOR": "1"})
 
 
 class TestVersion:
