@@ -123,7 +123,7 @@ everything else. The human must be able to verify independently (D-25).
 
 **Core Technologies**: Python, uv, Typer, pytest, ruff
 
-**LLM Integration**: Google Gemini 3.0 Flash (Preview) for smart features
+**LLM Integration**: Google Gemini 2.5 Flash (GA) for smart features
 
 **Deviation Process**: Any deviation from approved technologies MUST be documented in the
 feature's `plan.md` with clear justification.
@@ -183,4 +183,4 @@ When conflicts arise, Constitution principles take precedence.
 For day-to-day development guidance, code style details, and project-specific conventions,
 refer to the generated `CLAUDE.md` file at project root and feature-specific `plan.md` files.
 
-**Version**: 1.2.0 | **Ratified**: 2026-02-25 | **Last Amended**: 2026-02-25
+**Version**: 1.2.1 | **Ratified**: 2026-02-25 | **Last Amended**: 2026-02-27

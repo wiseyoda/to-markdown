@@ -27,7 +27,7 @@ class TestVersion:
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == EXIT_SUCCESS
         assert "to-markdown" in result.output
-        assert "0.1.0" in result.output
+        assert "1.0.0" in result.output
 
 
 class TestHelp:
