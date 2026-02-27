@@ -1,6 +1,7 @@
 """Tests for the Typer CLI (cli.py)."""
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,7 +18,14 @@ from to_markdown.core.constants import (
     TASK_LOG_DIR,
 )
 
-runner = CliRunner(env={"NO_COLOR": "1"})
+runner = CliRunner()
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _plain(text: str) -> str:
+    """Strip ANSI escape codes from CLI output for reliable assertions."""
+    return _ANSI_RE.sub("", text)
 
 
 class TestVersion:
@@ -35,12 +43,13 @@ class TestHelp:
 
     def test_help_prints_usage(self):
         result = runner.invoke(app, ["--help"])
+        output = _plain(result.output)
         assert result.exit_code == EXIT_SUCCESS
-        assert "Convert files to Markdown" in result.output
-        assert "--force" in result.output
-        assert "--output" in result.output
-        assert "--no-recursive" in result.output
-        assert "--fail-fast" in result.output
+        assert "Convert files to Markdown" in output
+        assert "--force" in output
+        assert "--output" in output
+        assert "--no-recursive" in output
+        assert "--fail-fast" in output
 
 
 class TestBasicConversion:
@@ -124,9 +133,10 @@ class TestSmartFlags:
 
     def test_help_shows_smart_flags(self):
         result = runner.invoke(app, ["--help"])
-        assert "--clean" in result.output
-        assert "--summary" in result.output
-        assert "--images" in result.output
+        output = _plain(result.output)
+        assert "--clean" in output
+        assert "--summary" in output
+        assert "--images" in output
 
     def test_clean_flag_accepted(self, sample_text_file: Path):
         with (
@@ -163,7 +173,7 @@ class TestNoCleanFlag:
 
     def test_help_shows_no_clean_flag(self):
         result = runner.invoke(app, ["--help"])
-        assert "--no-clean" in result.output
+        assert "--no-clean" in _plain(result.output)
 
     def test_no_clean_flag_accepted(self, sample_text_file: Path):
         result = runner.invoke(app, [str(sample_text_file), "--no-clean"])
@@ -179,7 +189,7 @@ class TestNoSanitizeFlag:
 
     def test_help_shows_no_sanitize_flag(self):
         result = runner.invoke(app, ["--help"])
-        assert "--no-sanitize" in result.output
+        assert "--no-sanitize" in _plain(result.output)
 
     def test_no_sanitize_flag_accepted(self, sample_text_file: Path):
         result = runner.invoke(app, [str(sample_text_file), "--no-sanitize"])
