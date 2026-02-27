@@ -86,6 +86,22 @@ class TestSpecialCharacters:
         assert "Garcia" in parsed["author"]
 
 
+class TestSanitizedField:
+    """Tests for the sanitized field in frontmatter."""
+
+    def test_frontmatter_sanitized_true(self, tmp_path: Path):
+        metadata = {"format_type": "pdf"}
+        result = compose_frontmatter(metadata, tmp_path / "test.pdf", sanitized=True)
+        parsed = _parse_frontmatter(result)
+        assert parsed["sanitized"] is True
+
+    def test_frontmatter_sanitized_false_by_default(self, tmp_path: Path):
+        metadata = {"format_type": "pdf"}
+        result = compose_frontmatter(metadata, tmp_path / "test.pdf")
+        parsed = _parse_frontmatter(result)
+        assert "sanitized" not in parsed
+
+
 class TestDelimiters:
     """Tests for YAML frontmatter delimiter format."""
 

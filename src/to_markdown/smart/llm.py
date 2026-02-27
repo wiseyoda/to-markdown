@@ -126,3 +126,76 @@ def generate(
     except (genai_errors.ClientError, genai_errors.ServerError, genai_errors.APIError) as exc:
         msg = f"LLM call failed: {exc}"
         raise LLMError(msg) from exc
+
+
+@retry(
+    retry=retry_if_exception(_is_retryable),
+    wait=wait_exponential(
+        min=LLM_RETRY_MIN_WAIT_SECONDS,
+        max=LLM_RETRY_MAX_WAIT_SECONDS,
+    ),
+    stop=stop_after_attempt(LLM_RETRY_MAX_ATTEMPTS),
+    reraise=True,
+)
+async def _generate_with_retry_async(
+    client: genai.Client,
+    *,
+    model: str,
+    contents: list | str,
+    max_output_tokens: int | None = None,
+    temperature: float | None = None,
+) -> str:
+    """Call Gemini async with retry logic. Raises on failure."""
+    config_kwargs: dict = {}
+    if max_output_tokens is not None:
+        config_kwargs["max_output_tokens"] = max_output_tokens
+    if temperature is not None:
+        config_kwargs["temperature"] = temperature
+
+    config = genai.types.GenerateContentConfig(**config_kwargs) if config_kwargs else None
+
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=contents,
+        config=config,
+    )
+    text = response.text
+    if not text:
+        msg = "Gemini returned empty response"
+        raise LLMError(msg)
+    return text
+
+
+async def generate_async(
+    contents: list | str,
+    *,
+    max_output_tokens: int | None = None,
+    temperature: float | None = None,
+) -> str:
+    """Generate content via Gemini async with retry logic.
+
+    Args:
+        contents: Text or multimodal content to send to the model.
+        max_output_tokens: Maximum tokens in the response.
+        temperature: Sampling temperature.
+
+    Returns:
+        The generated text response.
+
+    Raises:
+        LLMError: If the LLM call fails after retries.
+    """
+    client = get_client()
+    model = os.environ.get(GEMINI_MODEL_ENV, GEMINI_DEFAULT_MODEL)
+
+    try:
+        return await _generate_with_retry_async(
+            client,
+            model=model,
+            contents=contents,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+        )
+    except (genai_errors.ClientError, genai_errors.ServerError, genai_errors.APIError) as exc:
+        msg = f"LLM call failed: {exc}"
+        raise LLMError(msg) from exc

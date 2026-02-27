@@ -107,6 +107,7 @@ def handle_background(
     clean: bool,
     summary: bool,
     images_flag: bool,
+    no_sanitize: bool = False,
     store,
 ) -> None:
     """Handle --background flag."""
@@ -123,6 +124,7 @@ def handle_background(
             "clean": clean,
             "summary": summary,
             "images": images_flag,
+            "sanitize": not no_sanitize,
             "is_batch": is_batch,
         }
     )

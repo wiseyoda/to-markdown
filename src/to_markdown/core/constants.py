@@ -136,3 +136,46 @@ Describe this image in detail. The description should be:
 - If it contains text, transcribe the text exactly
 - 2-4 sentences long\
 """
+
+# --- Sanitization ---
+SANITIZE_ZERO_WIDTH_CHARS = frozenset(
+    {
+        "\u200b",  # Zero-width space
+        "\u200c",  # Zero-width non-joiner
+        "\u200d",  # Zero-width joiner
+        "\ufeff",  # Zero-width no-break space (BOM)
+        "\u200e",  # Left-to-right mark
+        "\u200f",  # Right-to-left mark
+        "\u00ad",  # Soft hyphen
+        "\u2060",  # Word joiner
+        "\u2061",  # Function application
+        "\u2062",  # Invisible times
+        "\u2063",  # Invisible separator
+        "\u2064",  # Invisible plus
+    }
+)
+
+SANITIZE_CONTROL_CHARS = frozenset(
+    {
+        *{chr(c) for c in range(0x0000, 0x0009)},  # Null through backspace
+        *{chr(c) for c in range(0x000E, 0x0020)},  # Shift out through unit separator
+        "\u007f",  # Delete
+    }
+)
+
+SANITIZE_DIRECTIONAL_CHARS = frozenset(
+    {
+        "\u202a",  # Left-to-right embedding
+        "\u202b",  # Right-to-left embedding
+        "\u202c",  # Pop directional formatting
+        "\u202d",  # Left-to-right override
+        "\u202e",  # Right-to-left override
+        "\u2066",  # Left-to-right isolate
+        "\u2067",  # Right-to-left isolate
+        "\u2068",  # First strong isolate
+        "\u2069",  # Pop directional isolate
+    }
+)
+
+# --- Parallel LLM ---
+PARALLEL_LLM_MAX_CONCURRENCY = 5

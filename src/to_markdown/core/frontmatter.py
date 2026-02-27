@@ -6,12 +6,18 @@ from pathlib import Path
 import yaml
 
 
-def compose_frontmatter(metadata: dict, source_path: Path) -> str:
+def compose_frontmatter(
+    metadata: dict,
+    source_path: Path,
+    *,
+    sanitized: bool = False,
+) -> str:
     """Compose YAML frontmatter from extraction metadata.
 
     Args:
         metadata: Metadata dict from Kreuzberg extraction.
         source_path: Path to the original source file.
+        sanitized: Whether the content was cleaned by the LLM sanitizer.
 
     Returns:
         YAML frontmatter string with leading and trailing ``---`` delimiters.
@@ -25,6 +31,8 @@ def compose_frontmatter(metadata: dict, source_path: Path) -> str:
     _add_if_present(data, "words", metadata.get("word_count"))
 
     data["format"] = metadata.get("format_type", source_path.suffix.lstrip("."))
+    if sanitized:
+        data["sanitized"] = True
     data["extracted_at"] = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     yaml_body = yaml.dump(data, default_flow_style=False, sort_keys=False, allow_unicode=True)

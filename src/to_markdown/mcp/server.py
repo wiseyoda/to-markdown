@@ -28,14 +28,22 @@ mcp = FastMCP(MCP_SERVER_NAME, instructions=MCP_SERVER_INSTRUCTIONS)
 def convert_file(
     file_path: Annotated[str, Field(description="Absolute path to the file to convert")],
     clean: Annotated[
-        bool, Field(description="Fix extraction artifacts via LLM (requires GEMINI_API_KEY)")
-    ] = False,
+        bool,
+        Field(
+            description="Fix extraction artifacts via LLM. Enabled by default; "
+            "silently disabled if GEMINI_API_KEY is not set"
+        ),
+    ] = True,
     summary: Annotated[
         bool, Field(description="Generate document summary via LLM (requires GEMINI_API_KEY)")
     ] = False,
     images: Annotated[
         bool, Field(description="Describe images via LLM vision (requires GEMINI_API_KEY)")
     ] = False,
+    sanitize: Annotated[
+        bool,
+        Field(description="Strip non-visible characters to prevent prompt injection"),
+    ] = True,
 ) -> str:
     """Convert a single file to LLM-optimized Markdown with YAML frontmatter.
 
@@ -44,7 +52,13 @@ def convert_file(
     content directly.
     """
     try:
-        return handle_convert_file(file_path, clean=clean, summary=summary, images=images)
+        return handle_convert_file(
+            file_path,
+            clean=clean,
+            summary=summary,
+            images=images,
+            sanitize=sanitize,
+        )
     except ValueError as exc:
         raise ToolError(str(exc)) from exc
     except Exception as exc:
@@ -57,14 +71,22 @@ def convert_batch(
     directory_path: Annotated[str, Field(description="Absolute path to the directory to convert")],
     recursive: Annotated[bool, Field(description="Scan subdirectories recursively")] = True,
     clean: Annotated[
-        bool, Field(description="Fix extraction artifacts via LLM (requires GEMINI_API_KEY)")
-    ] = False,
+        bool,
+        Field(
+            description="Fix extraction artifacts via LLM. Enabled by default; "
+            "silently disabled if GEMINI_API_KEY is not set"
+        ),
+    ] = True,
     summary: Annotated[
         bool, Field(description="Generate document summary via LLM (requires GEMINI_API_KEY)")
     ] = False,
     images: Annotated[
         bool, Field(description="Describe images via LLM vision (requires GEMINI_API_KEY)")
     ] = False,
+    sanitize: Annotated[
+        bool,
+        Field(description="Strip non-visible characters to prevent prompt injection"),
+    ] = True,
 ) -> str:
     """Convert all supported files in a directory to Markdown.
 
@@ -78,6 +100,7 @@ def convert_batch(
             clean=clean,
             summary=summary,
             images=images,
+            sanitize=sanitize,
         )
     except ValueError as exc:
         raise ToolError(str(exc)) from exc
@@ -112,14 +135,22 @@ def start_conversion(
         str, Field(description="Absolute path to the file or directory to convert")
     ],
     clean: Annotated[
-        bool, Field(description="Fix extraction artifacts via LLM (requires GEMINI_API_KEY)")
-    ] = False,
+        bool,
+        Field(
+            description="Fix extraction artifacts via LLM. Enabled by default; "
+            "silently disabled if GEMINI_API_KEY is not set"
+        ),
+    ] = True,
     summary: Annotated[
         bool, Field(description="Generate document summary via LLM (requires GEMINI_API_KEY)")
     ] = False,
     images: Annotated[
         bool, Field(description="Describe images via LLM vision (requires GEMINI_API_KEY)")
     ] = False,
+    sanitize: Annotated[
+        bool,
+        Field(description="Strip non-visible characters to prevent prompt injection"),
+    ] = True,
 ) -> str:
     """Start a background file conversion and return a task ID immediately.
 
@@ -132,6 +163,7 @@ def start_conversion(
             clean=clean,
             summary=summary,
             images=images,
+            sanitize=sanitize,
         )
     except ValueError as exc:
         raise ToolError(str(exc)) from exc

@@ -1,5 +1,6 @@
 """LLM-powered content cleanup: fix extraction artifacts without altering content."""
 
+import asyncio
 import logging
 
 from to_markdown.core.constants import (
@@ -7,8 +8,9 @@ from to_markdown.core.constants import (
     CLEAN_PROMPT,
     CLEAN_TEMPERATURE,
     MAX_CLEAN_TOKENS,
+    PARALLEL_LLM_MAX_CONCURRENCY,
 )
-from to_markdown.smart.llm import LLMError, generate
+from to_markdown.smart.llm import LLMError, generate, generate_async
 
 logger = logging.getLogger(__name__)
 
@@ -75,3 +77,43 @@ def _chunk_content(content: str, max_chars: int) -> list[str]:
 def _build_clean_prompt(chunk: str, format_type: str) -> str:
     """Format the clean prompt template with document context."""
     return CLEAN_PROMPT.format(format_type=format_type, content=chunk)
+
+
+async def _clean_single_chunk_async(
+    chunk: str,
+    format_type: str,
+    semaphore: asyncio.Semaphore,
+) -> str:
+    """Clean a single content chunk via async LLM call."""
+    async with semaphore:
+        prompt = _build_clean_prompt(chunk, format_type)
+        return await generate_async(prompt, temperature=CLEAN_TEMPERATURE)
+
+
+async def clean_content_async(content: str, format_type: str) -> str:
+    """Clean extraction artifacts from content via async parallel LLM calls.
+
+    Args:
+        content: The extracted document content (without frontmatter).
+        format_type: The source document format (e.g. "pdf", "docx").
+
+    Returns:
+        Cleaned content, or original content if LLM fails.
+    """
+    if not content.strip():
+        logger.info("Skipping clean: empty content")
+        return content
+
+    try:
+        chunks = _chunk_content(content, MAX_CLEAN_TOKENS * CHARS_PER_TOKEN_ESTIMATE)
+        if len(chunks) == 1:
+            prompt = _build_clean_prompt(chunks[0], format_type)
+            return await generate_async(prompt, temperature=CLEAN_TEMPERATURE)
+
+        semaphore = asyncio.Semaphore(PARALLEL_LLM_MAX_CONCURRENCY)
+        tasks = [_clean_single_chunk_async(chunk, format_type, semaphore) for chunk in chunks]
+        cleaned_chunks = await asyncio.gather(*tasks)
+        return "\n\n".join(cleaned_chunks)
+    except LLMError:
+        logger.warning("LLM clean failed, using original content")
+        return content

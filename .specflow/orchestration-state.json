@@ -5,34 +5,31 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-27T13:48:17.310Z",
+  "last_updated": "2026-02-27T14:09:09.160Z",
   "orchestration": {
     "phase": {
       "id": null,
-      "number": null,
-      "name": null,
-      "branch": null,
-      "status": "not_started",
+      "number": "0125",
+      "name": "Smart Pipeline Improvements",
+      "branch": "0125-smart-pipeline-improvements",
+      "status": "in_progress",
       "goals": [
-        "One-command macOS install (install.sh)",
-        "One-command Windows install (install.ps1)",
-        "Interactive configuration wizard (--setup)",
-        "Step-by-step INSTALL.md for non-technical users",
-        "Clean uninstall scripts",
-        "Tests for install logic and config wizard"
+        "Clean by default when GEMINI_API_KEY is set with --no-clean opt-out",
+        "Prompt injection filtering (hidden text, control chars, Unicode abuse) with --no-sanitize opt-out",
+        "Parallel LLM calls via asyncio for image descriptions and clean chunks (~4x speedup)"
       ],
       "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: Fresh macOS/Windows machine: clone, run install script, `to-markdown` works"
+      "userGateCriteria": "**USER GATE**: Clean runs by default, sanitization filters prompt injection, image descriptions parallelized"
     },
     "next_phase": {
       "number": "0130",
       "name": "Production Readiness & Docs"
     },
     "step": {
-      "current": "design",
-      "index": 0,
-      "status": "not_started"
+      "current": "implement",
+      "index": 2,
+      "status": "in_progress"
     },
     "analyze": {
       "iteration": null,

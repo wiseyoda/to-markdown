@@ -8,6 +8,12 @@ from typing import Annotated
 import typer
 
 from to_markdown import __version__
+from to_markdown.core.cli_helpers import (
+    configure_logging,
+    get_store,
+    load_dotenv,
+    validate_api_key,
+)
 from to_markdown.core.constants import (
     APP_NAME,
     EXIT_ALREADY_EXISTS,
@@ -35,56 +41,13 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit(EXIT_SUCCESS)
 
 
-def _configure_logging(verbose: int, quiet: bool) -> None:
-    """Configure logging level based on CLI flags."""
-    if quiet:
-        level = logging.ERROR
-    elif verbose >= 2:
-        level = logging.DEBUG
-    elif verbose == 1:
-        level = logging.INFO
-    else:
-        level = logging.WARNING
-
-    logging.basicConfig(
-        level=level,
-        format="%(levelname)s: %(message)s",
-        force=True,
-    )
-
-
-def _load_dotenv() -> None:
-    """Load .env file if python-dotenv is available."""
+def _is_llm_available() -> bool:
+    """Check if LLM features can be used (SDK installed + API key set)."""
     try:
-        from dotenv import load_dotenv
-
-        load_dotenv()
+        import google.genai  # noqa: F401
     except ImportError:
-        pass
-
-
-def _validate_api_key(clean: bool, summary: bool, images: bool) -> None:
-    """Validate GEMINI_API_KEY is set when smart features are requested."""
-    if not (clean or summary or images):
-        return
-
-    if not os.environ.get(GEMINI_API_KEY_ENV):
-        logger.error(
-            "%s is not set. Smart features (--clean, --summary, --images) require a "
-            "Gemini API key.\n\n"
-            "Set it with:\n"
-            "  export GEMINI_API_KEY=your-api-key\n\n"
-            "Or add it to a .env file in your project directory.",
-            GEMINI_API_KEY_ENV,
-        )
-        raise typer.Exit(EXIT_ERROR)
-
-
-def _get_store():
-    """Get the default TaskStore (lazy import)."""
-    from to_markdown.core.background import get_store
-
-    return get_store()
+        return False
+    return bool(os.environ.get(GEMINI_API_KEY_ENV))
 
 
 @app.command()
@@ -110,7 +73,9 @@ def main(
         typer.Option(
             "--clean",
             "-c",
-            help="Fix extraction artifacts via LLM (requires GEMINI_API_KEY).",
+            help=(
+                "Fix extraction artifacts via LLM (enabled by default when GEMINI_API_KEY is set)."
+            ),
         ),
     ] = False,
     summary: Annotated[
@@ -127,6 +92,20 @@ def main(
             "--images",
             "-i",
             help="Describe images via LLM vision (requires GEMINI_API_KEY).",
+        ),
+    ] = False,
+    no_clean: Annotated[
+        bool,
+        typer.Option(
+            "--no-clean",
+            help="Disable automatic content cleaning (clean is on by default with API key).",
+        ),
+    ] = False,
+    no_sanitize: Annotated[
+        bool,
+        typer.Option(
+            "--no-sanitize",
+            help="Disable prompt injection sanitization.",
         ),
     ] = False,
     no_recursive: Annotated[
@@ -176,8 +155,13 @@ def main(
     Accepts a single file, a directory (converts all supported files), or a glob
     pattern (e.g., "docs/*.pdf"). Directories are scanned recursively by default.
     """
-    _configure_logging(verbose, quiet)
-    _load_dotenv()
+    configure_logging(verbose, quiet)
+    load_dotenv()
+
+    # Compute effective clean: enabled by default when LLM available
+    effective_clean = clean or (not no_clean and _is_llm_available())
+    if no_clean:
+        effective_clean = False
 
     # Setup wizard (early return, no input_path required)
     if setup:
@@ -209,7 +193,7 @@ def main(
             handle_worker,
         )
 
-        store = _get_store()
+        store = get_store()
 
         if _worker is not None:
             handle_worker(_worker, store)
@@ -223,20 +207,21 @@ def main(
             handle_cancel(cancel, store)
             return
 
-        _validate_api_key(clean, summary, images)
+        validate_api_key(summary, images)
         handle_background(
             input_path,
             output,
             force=force,
-            clean=clean,
+            clean=effective_clean,
             summary=summary,
             images_flag=images,
+            no_sanitize=no_sanitize,
             store=store,
         )
         return
 
     # Standard conversion mode
-    _validate_api_key(clean, summary, images)
+    validate_api_key(summary, images)
 
     resolved = Path(input_path)
 
@@ -247,9 +232,10 @@ def main(
             output,
             recursive=not no_recursive,
             force=force,
-            clean=clean,
+            clean=effective_clean,
             summary=summary,
             images=images,
+            sanitize=not no_sanitize,
             fail_fast=fail_fast,
             quiet=quiet,
             verbose=verbose,
@@ -262,9 +248,10 @@ def main(
             resolved,
             output_path=output,
             force=force,
-            clean=clean,
+            clean=effective_clean,
             summary=summary,
             images=images,
+            sanitize=not no_sanitize,
         )
     except FileNotFoundError as exc:
         logger.error("%s", exc)

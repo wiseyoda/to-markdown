@@ -236,6 +236,24 @@ class TestConvertBatch:
         assert call_kwargs["images"] is True
 
     @patch("to_markdown.core.batch.convert_file")
+    def test_sanitize_passed_through(self, mock_convert, batch_dir: Path) -> None:
+        """sanitize flag is forwarded to convert_file."""
+        files = [batch_dir / "report.txt"]
+        mock_convert.return_value = files[0].with_suffix(".md")
+        convert_batch(files, sanitize=False, quiet=True)
+        call_kwargs = mock_convert.call_args[1]
+        assert call_kwargs["sanitize"] is False
+
+    @patch("to_markdown.core.batch.convert_file")
+    def test_sanitize_defaults_true(self, mock_convert, batch_dir: Path) -> None:
+        """sanitize defaults to True when not specified."""
+        files = [batch_dir / "report.txt"]
+        mock_convert.return_value = files[0].with_suffix(".md")
+        convert_batch(files, quiet=True)
+        call_kwargs = mock_convert.call_args[1]
+        assert call_kwargs["sanitize"] is True
+
+    @patch("to_markdown.core.batch.convert_file")
     def test_output_dir_mirroring(self, mock_convert, batch_dir: Path) -> None:
         """When -o dir is used, output mirrors input structure."""
         sub_file = batch_dir / "sub" / "deep.txt"
