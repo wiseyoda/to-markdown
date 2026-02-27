@@ -75,19 +75,28 @@ Converted 8 file(s), 2 skipped, 1 failed
 
 Requires `GEMINI_API_KEY` (install with `uv sync --extra llm`):
 
-```bash
-# Fix extraction artifacts via LLM
-uv run to-markdown document.pdf --clean
+Content cleaning runs automatically when `GEMINI_API_KEY` is set. Use `--no-clean`
+to disable.
 
+```bash
 # Generate document summary
 uv run to-markdown document.pdf --summary
 
 # Describe images via LLM vision
 uv run to-markdown document.pdf --images
 
+# Disable automatic content cleaning
+uv run to-markdown document.pdf --no-clean
+
 # Smart features work with batch mode too
-uv run to-markdown docs/ --summary --clean
+uv run to-markdown docs/ --summary
 ```
+
+### Sanitization
+
+to-markdown automatically sanitizes extracted content by stripping non-visible
+characters (zero-width Unicode, control characters, bidirectional overrides) that
+could be used for prompt injection. Use `--no-sanitize` to disable.
 
 ### Background Processing
 
@@ -99,7 +108,7 @@ uv run to-markdown large-file.pdf --background
 uv run to-markdown large-file.pdf --bg
 
 # Background with smart features
-uv run to-markdown large-file.pdf --bg --clean --summary
+uv run to-markdown large-file.pdf --bg --summary
 
 # Background batch conversion
 uv run to-markdown docs/ --bg

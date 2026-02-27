@@ -27,9 +27,10 @@ logger = logging.getLogger(__name__)
 def handle_convert_file(
     file_path: str,
     *,
-    clean: bool = False,
+    clean: bool = True,
     summary: bool = False,
     images: bool = False,
+    sanitize: bool = True,
 ) -> str:
     """Convert a single file and return structured response with markdown content."""
     path = Path(file_path)
@@ -40,11 +41,17 @@ def handle_convert_file(
         msg = f"Not a file: {file_path}"
         raise ValueError(msg)
 
-    _validate_llm_flags(clean=clean, summary=summary, images=images)
+    # Auto-disable clean if LLM unavailable
+    if clean and (not _check_llm_available() or not os.environ.get(GEMINI_API_KEY_ENV)):
+        clean = False
+
+    _validate_llm_flags(summary=summary, images=images)
 
     from to_markdown.core.pipeline import convert_to_string
 
-    content = convert_to_string(path, clean=clean, summary=summary, images=images)
+    content = convert_to_string(
+        path, clean=clean, summary=summary, images=images, sanitize=sanitize
+    )
 
     # Build structured response envelope
     char_count = len(content)
@@ -77,9 +84,10 @@ def handle_convert_batch(
     directory_path: str,
     *,
     recursive: bool = True,
-    clean: bool = False,
+    clean: bool = True,
     summary: bool = False,
     images: bool = False,
+    sanitize: bool = True,
 ) -> str:
     """Convert all files in a directory and return structured results."""
     path = Path(directory_path)
@@ -90,7 +98,11 @@ def handle_convert_batch(
         msg = f"Not a directory: {directory_path}"
         raise ValueError(msg)
 
-    _validate_llm_flags(clean=clean, summary=summary, images=images)
+    # Auto-disable clean if LLM unavailable
+    if clean and (not _check_llm_available() or not os.environ.get(GEMINI_API_KEY_ENV)):
+        clean = False
+
+    _validate_llm_flags(summary=summary, images=images)
 
     from to_markdown.core.batch import convert_batch, discover_files
 
@@ -106,6 +118,7 @@ def handle_convert_batch(
         clean=clean,
         summary=summary,
         images=images,
+        sanitize=sanitize,
         quiet=True,
     )
 
@@ -177,14 +190,14 @@ def _check_llm_available() -> bool:
         return False
 
 
-def _validate_llm_flags(*, clean: bool, summary: bool, images: bool) -> None:
-    """Validate LLM flags are usable."""
-    if not (clean or summary or images):
+def _validate_llm_flags(*, summary: bool, images: bool) -> None:
+    """Validate LLM flags are usable (summary and images only; clean auto-disables)."""
+    if not (summary or images):
         return
 
     if not _check_llm_available():
         msg = (
-            "Smart features (clean, summary, images) require the LLM extras. "
+            "Smart features (summary, images) require the LLM extras. "
             "Install with: uv sync --extra llm"
         )
         raise ValueError(msg)

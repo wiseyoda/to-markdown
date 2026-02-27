@@ -23,20 +23,28 @@ to-markdown/
         __init__.py
         extraction.py      # Kreuzberg adapter interface
         frontmatter.py     # YAML frontmatter composition from metadata
-        pipeline.py        # Kreuzberg extract -> frontmatter -> LLM -> output
+        pipeline.py        # Kreuzberg extract -> frontmatter -> async LLM -> output
         constants.py       # ALL project constants (single source of truth)
         batch.py           # Batch processing: file discovery + multi-file conversion
+        sanitize.py        # Content sanitization: strip non-visible Unicode chars
+        cli_helpers.py     # CLI helper functions (extracted from cli.py)
+        background.py      # CLI handlers for --background, --status, --cancel
+        display.py         # Batch display and progress bar
+        tasks.py           # SQLite task store for background processing
+        worker.py          # Background worker subprocess execution
+        setup.py           # Configuration wizard for --setup
       smart/               # LLM-powered features (optional)
         __init__.py
-        llm.py             # Gemini client wrapper
-        clean.py           # --clean flag: LLM artifact repair
-        summary.py         # --summary flag: Gemini document summarization
-        images.py          # --images flag: Gemini vision image description
+        llm.py             # Gemini client wrapper (sync + async)
+        clean.py           # --clean flag: LLM artifact repair (sync + async)
+        summary.py         # --summary flag: Gemini document summarization (sync + async)
+        images.py          # --images flag: Gemini vision image description (sync + async)
       mcp/                 # MCP server for AI agent integration (optional)
         __init__.py
         __main__.py        # Entry point: python -m to_markdown.mcp
         server.py          # FastMCP server with tool definitions
         tools.py           # Tool handler implementations
+        background_tools.py # MCP background task handlers
   tests/
     test_batch.py          # Batch processing tests
     fixtures/              # Test input files per format
@@ -91,11 +99,26 @@ def extract(file_path: Path) -> ExtractionResult:
 
 ```
 Input File -> Kreuzberg extract (via adapter) -> content + metadata
-           -> Compose YAML frontmatter from metadata
-           -> Optionally apply LLM features (--summary, --images)
+           -> Sanitize content (strip non-visible Unicode, on by default)
+           -> Compose YAML frontmatter from metadata (includes sanitized: true if modified)
+           -> Async LLM features: clean + images concurrent, then summary
            -> Assemble final .md (frontmatter + content)
            -> Write output file
 ```
+
+### Async Pattern (smart/ modules)
+
+Each smart module has both sync and async versions:
+- `generate()` / `generate_async()` in llm.py
+- `clean_content()` / `clean_content_async()` in clean.py
+- `summarize_content()` / `summarize_content_async()` in summary.py
+- `describe_images()` / `describe_images_async()` in images.py
+
+Pipeline uses async internally via `_build_content_async()` with `asyncio.gather()`:
+- Clean + images run concurrently (independent data streams)
+- Summary runs after clean completes (depends on cleaned content)
+- `asyncio.Semaphore(PARALLEL_LLM_MAX_CONCURRENCY)` bounds concurrent API calls
+- Single `asyncio.run()` boundary in `_build_content()` — public API stays synchronous
 
 ### Frontmatter Composition
 
@@ -244,4 +267,4 @@ Code and docs must never drift. When any change affects behavior:
 - All doc updates go in the same commit as the code change
 
 ---
-*Version: 2.0.0 | Last Updated: 2026-02-25*
+*Version: 3.0.0 | Last Updated: 2026-02-27*

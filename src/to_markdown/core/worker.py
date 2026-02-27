@@ -105,6 +105,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
                 clean=args.get("clean", False),
                 summary=args.get("summary", False),
                 images=args.get("images", False),
+                sanitize=args.get("sanitize", True),
                 quiet=True,
             )
             output_str = f"{len(result.succeeded)} succeeded, {len(result.failed)} failed"
@@ -124,6 +125,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
                 clean=args.get("clean", False),
                 summary=args.get("summary", False),
                 images=args.get("images", False),
+                sanitize=args.get("sanitize", True),
             )
             store.update(
                 task_id,

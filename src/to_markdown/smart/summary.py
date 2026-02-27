@@ -8,7 +8,7 @@ from to_markdown.core.constants import (
     SUMMARY_SECTION_HEADING,
     SUMMARY_TEMPERATURE,
 )
-from to_markdown.smart.llm import LLMError, generate
+from to_markdown.smart.llm import LLMError, generate, generate_async
 
 logger = logging.getLogger(__name__)
 
@@ -50,3 +50,30 @@ def format_summary_section(summary: str) -> str:
         Formatted markdown section with heading.
     """
     return f"{SUMMARY_SECTION_HEADING}\n\n{summary}\n"
+
+
+async def summarize_content_async(content: str, format_type: str) -> str | None:
+    """Generate a summary of the document content via async LLM.
+
+    Args:
+        content: The document content to summarize.
+        format_type: The source document format (e.g. "pdf", "docx").
+
+    Returns:
+        Summary text, or None if LLM fails or content is empty.
+    """
+    if not content.strip():
+        logger.info("Skipping summary: empty content")
+        return None
+
+    prompt = SUMMARY_PROMPT.format(content=content)
+
+    try:
+        return await generate_async(
+            prompt,
+            temperature=SUMMARY_TEMPERATURE,
+            max_output_tokens=MAX_SUMMARY_TOKENS,
+        )
+    except LLMError:
+        logger.warning("LLM summary failed, skipping summary section")
+        return None

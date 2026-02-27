@@ -158,21 +158,82 @@ class TestSmartFlags:
             assert result.exit_code == EXIT_SUCCESS
 
 
-class TestApiKeyValidation:
-    """Tests for API key validation with smart flags."""
+class TestNoCleanFlag:
+    """Tests for --no-clean flag (T006)."""
 
-    def test_missing_key_with_clean_exits_error(self, sample_text_file: Path):
+    def test_help_shows_no_clean_flag(self):
+        result = runner.invoke(app, ["--help"])
+        assert "--no-clean" in result.output
+
+    def test_no_clean_flag_accepted(self, sample_text_file: Path):
+        result = runner.invoke(app, [str(sample_text_file), "--no-clean"])
+        assert result.exit_code == EXIT_SUCCESS
+
+    def test_no_clean_help_text(self):
+        result = runner.invoke(app, ["--help"])
+        assert "Disable automatic content cleaning" in result.output
+
+
+class TestNoSanitizeFlag:
+    """Tests for --no-sanitize flag (T006)."""
+
+    def test_help_shows_no_sanitize_flag(self):
+        result = runner.invoke(app, ["--help"])
+        assert "--no-sanitize" in result.output
+
+    def test_no_sanitize_flag_accepted(self, sample_text_file: Path):
+        result = runner.invoke(app, [str(sample_text_file), "--no-sanitize"])
+        assert result.exit_code == EXIT_SUCCESS
+
+    def test_no_sanitize_help_text(self):
+        result = runner.invoke(app, ["--help"])
+        assert "Disable prompt injection sanitization" in result.output
+
+    @patch("to_markdown.cli.convert_file")
+    def test_no_sanitize_passes_sanitize_false(self, mock_convert, sample_text_file: Path):
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        runner.invoke(app, [str(sample_text_file), "--no-sanitize"])
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["sanitize"] is False
+
+    @patch("to_markdown.cli.convert_file")
+    def test_default_passes_sanitize_true(self, mock_convert, sample_text_file: Path):
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        runner.invoke(app, [str(sample_text_file)])
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["sanitize"] is True
+
+
+class TestCleanHelpTextUpdated:
+    """Tests for updated --clean help text (T006)."""
+
+    def test_clean_help_mentions_default_behavior(self):
+        result = runner.invoke(app, ["--help"])
+        assert "enabled by default" in result.output
+
+
+class TestApiKeyValidation:
+    """Tests for API key validation with smart flags.
+
+    Note: --clean no longer triggers API key validation (T007). Clean auto-disables
+    when LLM is unavailable. Only --summary and --images require explicit API key.
+    """
+
+    def test_missing_key_with_clean_does_not_error(self, sample_text_file: Path):
+        """--clean without API key silently degrades (no error exit)."""
         with (
             patch.dict("os.environ", {}, clear=True),
-            patch("to_markdown.cli._load_dotenv"),
+            patch("to_markdown.cli.load_dotenv"),
         ):
             result = runner.invoke(app, [str(sample_text_file), "--clean"])
-            assert result.exit_code == EXIT_ERROR
+            assert result.exit_code == EXIT_SUCCESS
 
     def test_missing_key_with_summary_exits_error(self, sample_text_file: Path):
         with (
             patch.dict("os.environ", {}, clear=True),
-            patch("to_markdown.cli._load_dotenv"),
+            patch("to_markdown.cli.load_dotenv"),
         ):
             result = runner.invoke(app, [str(sample_text_file), "--summary"])
             assert result.exit_code == EXIT_ERROR
@@ -180,23 +241,24 @@ class TestApiKeyValidation:
     def test_missing_key_with_images_exits_error(self, sample_text_file: Path):
         with (
             patch.dict("os.environ", {}, clear=True),
-            patch("to_markdown.cli._load_dotenv"),
+            patch("to_markdown.cli.load_dotenv"),
         ):
             result = runner.invoke(app, [str(sample_text_file), "--images"])
             assert result.exit_code == EXIT_ERROR
 
-    def test_error_message_mentions_api_key(self, sample_text_file: Path):
+    def test_error_message_mentions_api_key_for_summary(self, sample_text_file: Path):
+        """API key error message shown for --summary (not --clean)."""
         with (
             patch.dict("os.environ", {}, clear=True),
-            patch("to_markdown.cli._load_dotenv"),
+            patch("to_markdown.cli.load_dotenv"),
         ):
-            result = runner.invoke(app, [str(sample_text_file), "--clean"])
+            result = runner.invoke(app, [str(sample_text_file), "--summary"])
             assert "GEMINI_API_KEY" in result.output
 
     def test_no_error_without_smart_flags(self, sample_text_file: Path):
         with (
             patch.dict("os.environ", {}, clear=True),
-            patch("to_markdown.cli._load_dotenv"),
+            patch("to_markdown.cli.load_dotenv"),
         ):
             result = runner.invoke(app, [str(sample_text_file)])
             assert result.exit_code == EXIT_SUCCESS
@@ -302,7 +364,7 @@ class TestBackgroundFlag:
         sample = tmp_path / "file.pdf"
         sample.write_text("content")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, [str(sample), "--background"])
 
         assert result.exit_code == EXIT_BACKGROUND
@@ -317,7 +379,7 @@ class TestBackgroundFlag:
         sample = tmp_path / "file.pdf"
         sample.write_text("content")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             runner.invoke(app, [str(sample), "--background"])
 
         tasks = store.list()
@@ -331,7 +393,7 @@ class TestBackgroundFlag:
         sample = tmp_path / "file.pdf"
         sample.write_text("content")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             runner.invoke(app, [str(sample), "--background"])
 
         mock_spawn.assert_called_once()
@@ -343,7 +405,7 @@ class TestBackgroundFlag:
         sample = tmp_path / "file.pdf"
         sample.write_text("content")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, [str(sample), "--bg"])
 
         assert result.exit_code == EXIT_BACKGROUND
@@ -357,7 +419,7 @@ class TestBackgroundFlag:
         sample.write_text("content")
 
         with (
-            patch("to_markdown.cli._get_store", return_value=store),
+            patch("to_markdown.cli.get_store", return_value=store),
             patch.object(store, "cleanup") as mock_cleanup,
             patch.object(store, "check_orphans") as mock_orphans,
         ):
@@ -373,12 +435,40 @@ class TestBackgroundFlag:
         sample = tmp_path / "file.pdf"
         sample.write_text("content")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             runner.invoke(app, [str(sample), "--background", "--force"])
 
         tasks = store.list()
         args = json.loads(tasks[0].command_args)
         assert args["force"] is True
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_preserves_no_sanitize_flag(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli.get_store", return_value=store):
+            runner.invoke(app, [str(sample), "--background", "--no-sanitize"])
+
+        tasks = store.list()
+        args = json.loads(tasks[0].command_args)
+        assert args["sanitize"] is False
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_background_no_sanitize_defaults_false(self, mock_spawn, tmp_path: Path):
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.cli.get_store", return_value=store):
+            runner.invoke(app, [str(sample), "--background"])
+
+        tasks = store.list()
+        args = json.loads(tasks[0].command_args)
+        assert args["sanitize"] is True
 
 
 class TestWorkerFlag:
@@ -399,7 +489,7 @@ class TestWorkerFlag:
         store = TaskStore(db_path=store_dir / TASK_DB_FILENAME)
         task = store.create("/path/to/file.pdf")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             runner.invoke(app, ["dummy", "--_worker", task.id])
 
         mock_run.assert_called_once()
@@ -431,7 +521,7 @@ class TestStatusFlag:
             started_at="2026-02-26T10:00:00",
         )
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, ["dummy", "--status", task.id])
 
         assert result.exit_code == EXIT_SUCCESS
@@ -443,7 +533,7 @@ class TestStatusFlag:
         store.create("/path/to/a.pdf")
         store.create("/path/to/b.pdf")
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, ["dummy", "--status", "all"])
 
         assert result.exit_code == EXIT_SUCCESS
@@ -453,7 +543,7 @@ class TestStatusFlag:
     def test_status_not_found(self, tmp_path: Path):
         store = self._make_store(tmp_path)
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, ["dummy", "--status", "nonexistent"])
 
         assert result.exit_code == EXIT_ERROR
@@ -462,7 +552,7 @@ class TestStatusFlag:
     def test_status_no_tasks(self, tmp_path: Path):
         store = self._make_store(tmp_path)
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, ["dummy", "--status", "all"])
 
         assert result.exit_code == EXIT_SUCCESS
@@ -472,7 +562,7 @@ class TestStatusFlag:
         store = self._make_store(tmp_path)
 
         with (
-            patch("to_markdown.cli._get_store", return_value=store),
+            patch("to_markdown.cli.get_store", return_value=store),
             patch.object(store, "check_orphans") as mock_orphans,
             patch.object(store, "cleanup") as mock_cleanup,
         ):
@@ -503,7 +593,7 @@ class TestCancelFlag:
         store.update(task.id, status=TaskStatus.RUNNING.value, pid=os.getpid())
 
         with (
-            patch("to_markdown.cli._get_store", return_value=store),
+            patch("to_markdown.cli.get_store", return_value=store),
             patch("os.kill"),
         ):
             result = runner.invoke(app, ["dummy", "--cancel", task.id])
@@ -518,7 +608,7 @@ class TestCancelFlag:
         task = store.create("/path/to/file.pdf")
         store.update(task.id, status=TaskStatus.COMPLETED.value)
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, ["dummy", "--cancel", task.id])
 
         assert result.exit_code == EXIT_SUCCESS
@@ -527,7 +617,7 @@ class TestCancelFlag:
     def test_cancel_not_found(self, tmp_path: Path):
         store = self._make_store(tmp_path)
 
-        with patch("to_markdown.cli._get_store", return_value=store):
+        with patch("to_markdown.cli.get_store", return_value=store):
             result = runner.invoke(app, ["dummy", "--cancel", "nonexistent"])
 
         assert result.exit_code == EXIT_ERROR
@@ -541,7 +631,7 @@ class TestCancelFlag:
         store.update(task.id, status=TaskStatus.RUNNING.value, pid=999999)
 
         with (
-            patch("to_markdown.cli._get_store", return_value=store),
+            patch("to_markdown.cli.get_store", return_value=store),
             patch.object(store, "check_orphans") as mock_orphans,
             patch.object(store, "cleanup") as mock_cleanup,
             patch("os.kill"),
@@ -572,3 +662,132 @@ class TestMutualExclusivity:
         sample.write_text("content")
         result = runner.invoke(app, [str(sample), "--status", "all", "--cancel", "abc"])
         assert result.exit_code == EXIT_ERROR
+
+
+class TestCleanByDefault:
+    """Tests for clean-by-default behavior (T008).
+
+    When GEMINI_API_KEY is set and LLM SDK is available, clean should run
+    automatically without requiring --clean. The --no-clean flag disables it.
+    """
+
+    @patch("to_markdown.cli.convert_file")
+    @patch("to_markdown.cli._is_llm_available", return_value=True)
+    def test_clean_runs_by_default_with_api_key(
+        self,
+        mock_llm_avail,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """With API key set and LLM SDK available, clean=True by default."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file)])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["clean"] is True
+
+    @patch("to_markdown.cli.convert_file")
+    @patch("to_markdown.cli._is_llm_available", return_value=True)
+    def test_no_clean_overrides_default(
+        self,
+        mock_llm_avail,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """--no-clean disables clean even with API key and LLM available."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file), "--no-clean"])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["clean"] is False
+
+    @patch("to_markdown.cli.convert_file")
+    def test_clean_skipped_without_api_key(
+        self,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """Without API key, clean silently skipped (no error, clean=False)."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch("to_markdown.cli.load_dotenv"),
+        ):
+            result = runner.invoke(app, [str(sample_text_file)])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["clean"] is False
+
+    @patch("to_markdown.cli.convert_file")
+    @patch("to_markdown.cli._is_llm_available", return_value=False)
+    def test_clean_skipped_without_llm_sdk(
+        self,
+        mock_llm_avail,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """With API key but no LLM SDK, clean silently skipped."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file)])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["clean"] is False
+
+    @patch("to_markdown.cli.convert_file")
+    @patch("to_markdown.cli._is_llm_available", return_value=True)
+    def test_explicit_clean_flag_still_accepted(
+        self,
+        mock_llm_avail,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """--clean flag accepted without error (no-op since clean is default)."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file), "--clean"])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["clean"] is True
+
+    @patch("to_markdown.cli.convert_file")
+    @patch("to_markdown.cli._is_llm_available", return_value=True)
+    def test_no_sanitize_passes_sanitize_false(
+        self,
+        mock_llm_avail,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """--no-sanitize passes sanitize=False to pipeline."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file), "--no-sanitize"])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["sanitize"] is False
+
+    @patch("to_markdown.cli.convert_file")
+    @patch("to_markdown.cli._is_llm_available", return_value=True)
+    def test_summary_images_still_require_explicit_flags(
+        self,
+        mock_llm_avail,
+        mock_convert,
+        sample_text_file: Path,
+    ):
+        """Summary and images are NOT enabled by default, even with API key."""
+        mock_convert.return_value = sample_text_file.with_suffix(".md")
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}):
+            result = runner.invoke(app, [str(sample_text_file)])
+        assert result.exit_code == EXIT_SUCCESS
+        mock_convert.assert_called_once()
+        _, kwargs = mock_convert.call_args
+        assert kwargs["summary"] is False
+        assert kwargs["images"] is False

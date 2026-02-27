@@ -1,9 +1,17 @@
 """Tests for the --clean module (smart/clean.py)."""
 
-from unittest.mock import patch
+import asyncio
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from to_markdown.core.constants import CHARS_PER_TOKEN_ESTIMATE, MAX_CLEAN_TOKENS
-from to_markdown.smart.clean import _build_clean_prompt, _chunk_content, clean_content
+from to_markdown.smart.clean import (
+    _build_clean_prompt,
+    _chunk_content,
+    clean_content,
+    clean_content_async,
+)
 from to_markdown.smart.llm import LLMError
 
 
@@ -97,3 +105,123 @@ class TestBuildCleanPrompt:
         result = _build_clean_prompt("text", "pdf")
         assert "NEVER add new information" in result
         assert "artifact" in result.lower()
+
+
+class TestCleanContentAsync:
+    """Tests for the clean_content_async function."""
+
+    @pytest.mark.asyncio
+    async def test_single_chunk_no_parallelism(self):
+        mock_gen = AsyncMock(return_value="cleaned text")
+        with patch("to_markdown.smart.clean.generate_async", mock_gen):
+            result = await clean_content_async("raw text with inBangkok", "pdf")
+            assert result == "cleaned text"
+            mock_gen.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_multi_chunk_all_processed_concurrently(self):
+        max_chars = MAX_CLEAN_TOKENS * CHARS_PER_TOKEN_ESTIMATE
+        paragraphs = ["x" * 1000 for _ in range(500)]
+        content = "\n\n".join(paragraphs)
+        chunks = _chunk_content(content, max_chars)
+        assert len(chunks) >= 2
+
+        mock_gen = AsyncMock(return_value="cleaned chunk")
+        with patch("to_markdown.smart.clean.generate_async", mock_gen):
+            result = await clean_content_async(content, "pdf")
+            assert mock_gen.await_count == len(chunks)
+            assert result == "\n\n".join(["cleaned chunk"] * len(chunks))
+
+    @pytest.mark.asyncio
+    async def test_llm_failure_falls_back_to_original(self):
+        original = "original content with inBangkok"
+        mock_gen = AsyncMock(side_effect=LLMError("fail"))
+        with patch("to_markdown.smart.clean.generate_async", mock_gen):
+            result = await clean_content_async(original, "pdf")
+            assert result == original
+
+    @pytest.mark.asyncio
+    async def test_empty_content_returns_unchanged(self):
+        mock_gen = AsyncMock()
+        with patch("to_markdown.smart.clean.generate_async", mock_gen):
+            result = await clean_content_async("", "pdf")
+            mock_gen.assert_not_awaited()
+            assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_whitespace_only_returns_unchanged(self):
+        mock_gen = AsyncMock()
+        with patch("to_markdown.smart.clean.generate_async", mock_gen):
+            result = await clean_content_async("   \n\n  ", "pdf")
+            mock_gen.assert_not_awaited()
+            assert result == "   \n\n  "
+
+    @pytest.mark.asyncio
+    async def test_logs_warning_on_llm_failure(self, caplog):
+        mock_gen = AsyncMock(side_effect=LLMError("fail"))
+        with patch("to_markdown.smart.clean.generate_async", mock_gen):
+            import logging
+
+            with caplog.at_level(logging.WARNING):
+                await clean_content_async("some content", "pdf")
+            assert "LLM clean failed" in caplog.text
+
+
+class TestCleanContentAsyncRun:
+    """Tests for clean_content_async() using asyncio.run()."""
+
+    def test_single_chunk_no_parallelism(self):
+        """Short content uses single async call (no gather)."""
+        with patch(
+            "to_markdown.smart.clean.generate_async",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.return_value = "Cleaned content"
+            result = asyncio.run(clean_content_async("Short text", "pdf"))
+            assert result == "Cleaned content"
+            assert mock.await_count == 1
+
+    def test_multi_chunk_concurrent(self):
+        """Large content splits into chunks processed concurrently."""
+        chunk1 = "A" * 300_000
+        chunk2 = "B" * 300_000
+        large_content = chunk1 + "\n\n" + chunk2
+
+        with patch(
+            "to_markdown.smart.clean.generate_async",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.return_value = "Cleaned chunk"
+            result = asyncio.run(clean_content_async(large_content, "pdf"))
+            assert mock.await_count == 2
+            assert result == "Cleaned chunk\n\nCleaned chunk"
+
+    def test_llm_failure_returns_original(self):
+        """LLM error falls back to original content."""
+        with patch(
+            "to_markdown.smart.clean.generate_async",
+            new_callable=AsyncMock,
+        ) as mock:
+            mock.side_effect = LLMError("API error")
+            result = asyncio.run(clean_content_async("Original text", "pdf"))
+            assert result == "Original text"
+
+    def test_empty_content_returns_unchanged(self):
+        """Empty content returns without calling LLM."""
+        with patch(
+            "to_markdown.smart.clean.generate_async",
+            new_callable=AsyncMock,
+        ) as mock:
+            result = asyncio.run(clean_content_async("", "pdf"))
+            assert result == ""
+            mock.assert_not_awaited()
+
+    def test_whitespace_only_returns_unchanged(self):
+        """Whitespace-only content returns without calling LLM."""
+        with patch(
+            "to_markdown.smart.clean.generate_async",
+            new_callable=AsyncMock,
+        ) as mock:
+            result = asyncio.run(clean_content_async("   \n  ", "pdf"))
+            assert result == "   \n  "
+            mock.assert_not_awaited()

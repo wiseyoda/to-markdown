@@ -1,9 +1,15 @@
 """Tests for the --summary module (smart/summary.py)."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from to_markdown.smart.llm import LLMError
-from to_markdown.smart.summary import format_summary_section, summarize_content
+from to_markdown.smart.summary import (
+    format_summary_section,
+    summarize_content,
+    summarize_content_async,
+)
 
 
 class TestSummarizeContent:
@@ -65,3 +71,59 @@ class TestFormatSummarySection:
         assert lines[0] == "## Summary"
         assert lines[1] == ""
         assert lines[2] == "Summary text."
+
+
+class TestSummarizeContentAsync:
+    """Tests for the summarize_content_async function."""
+
+    @pytest.mark.asyncio
+    async def test_returns_summary_text(self):
+        mock = AsyncMock(return_value="A concise summary.")
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            result = await summarize_content_async("Document content here.", "pdf")
+            assert result == "A concise summary."
+
+    @pytest.mark.asyncio
+    async def test_skips_empty_content(self):
+        mock = AsyncMock()
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            result = await summarize_content_async("", "pdf")
+            mock.assert_not_called()
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_skips_whitespace_only_content(self):
+        mock = AsyncMock()
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            result = await summarize_content_async("   \n  ", "pdf")
+            mock.assert_not_called()
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_graceful_degradation_on_llm_failure(self):
+        mock = AsyncMock(side_effect=LLMError("fail"))
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            result = await summarize_content_async("Some content", "pdf")
+            assert result is None
+
+    @pytest.mark.asyncio
+    async def test_uses_summary_temperature(self):
+        mock = AsyncMock(return_value="ok")
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            await summarize_content_async("content", "pdf")
+            assert mock.call_args.kwargs["temperature"] == 0.3
+
+    @pytest.mark.asyncio
+    async def test_uses_max_summary_tokens(self):
+        mock = AsyncMock(return_value="ok")
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            await summarize_content_async("content", "pdf")
+            assert mock.call_args.kwargs["max_output_tokens"] == 4096
+
+    @pytest.mark.asyncio
+    async def test_prompt_includes_content(self):
+        mock = AsyncMock(return_value="ok")
+        with patch("to_markdown.smart.summary.generate_async", mock):
+            await summarize_content_async("my document text", "pdf")
+            prompt = mock.call_args[0][0]
+            assert "my document text" in prompt

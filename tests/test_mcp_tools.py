@@ -11,6 +11,7 @@ from to_markdown.core.constants import (
     TASK_LOG_DIR,
 )
 from to_markdown.mcp.tools import (
+    _validate_llm_flags,
     handle_convert_batch,
     handle_convert_file,
     handle_get_status,
@@ -62,22 +63,154 @@ class TestHandleConvertFile:
             result = handle_convert_file(str(sample_text_file), clean=True, summary=True)
             assert "**Features**: clean, summary" in result
 
-    def test_llm_without_sdk_raises(self, sample_text_file: Path):
+    def test_clean_default_true(self, sample_text_file: Path):
+        """clean=True by default; auto-disables when LLM unavailable."""
+        with patch("to_markdown.mcp.tools._check_llm_available", return_value=False):
+            # Should NOT raise - clean auto-disables silently
+            result = handle_convert_file(str(sample_text_file))
+            assert "**Source**: sample.txt" in result
+
+    def test_clean_auto_disables_no_sdk(self, sample_text_file: Path):
+        """clean=True silently becomes False when SDK is not installed."""
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            patch(
+                "to_markdown.core.pipeline.convert_to_string",
+                return_value="---\ncontent\n",
+            ) as mock_convert,
+        ):
+            handle_convert_file(str(sample_text_file))
+            # clean should have been auto-disabled to False
+            _args, kwargs = mock_convert.call_args
+            assert kwargs["clean"] is False
+            assert kwargs["sanitize"] is True
+
+    def test_clean_auto_disables_no_api_key(
+        self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """clean=True silently becomes False when GEMINI_API_KEY is not set."""
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
+            patch(
+                "to_markdown.core.pipeline.convert_to_string",
+                return_value="---\ncontent\n",
+            ) as mock_convert,
+        ):
+            handle_convert_file(str(sample_text_file))
+            # clean should have been auto-disabled
+            _args, kwargs = mock_convert.call_args
+            assert kwargs["clean"] is False
+
+    def test_clean_stays_enabled_when_llm_available(
+        self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """clean=True stays True when SDK installed and API key set."""
+        monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
+            patch(
+                "to_markdown.core.pipeline.convert_to_string",
+                return_value="---\ncontent\n",
+            ) as mock_convert,
+        ):
+            handle_convert_file(str(sample_text_file))
+            _args, kwargs = mock_convert.call_args
+            assert kwargs["clean"] is True
+
+    def test_summary_still_raises_without_sdk(self, sample_text_file: Path):
+        """summary=True still raises when SDK not installed (only clean auto-disables)."""
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
             pytest.raises(ValueError, match="LLM extras"),
         ):
-            handle_convert_file(str(sample_text_file), clean=True)
+            handle_convert_file(str(sample_text_file), summary=True)
 
-    def test_llm_without_api_key_raises(
+    def test_images_still_raises_without_api_key(
         self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
     ):
+        """images=True still raises when API key not set."""
         monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
             pytest.raises(ValueError, match="GEMINI_API_KEY"),
         ):
-            handle_convert_file(str(sample_text_file), summary=True)
+            handle_convert_file(str(sample_text_file), images=True)
+
+    def test_sanitize_passed_through(self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch):
+        """sanitize parameter is forwarded to convert_to_string."""
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            patch(
+                "to_markdown.core.pipeline.convert_to_string",
+                return_value="---\ncontent\n",
+            ) as mock_convert,
+        ):
+            handle_convert_file(str(sample_text_file), sanitize=False)
+            _args, kwargs = mock_convert.call_args
+            assert kwargs["sanitize"] is False
+
+    def test_sanitize_defaults_true(self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch):
+        """sanitize defaults to True."""
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            patch(
+                "to_markdown.core.pipeline.convert_to_string",
+                return_value="---\ncontent\n",
+            ) as mock_convert,
+        ):
+            handle_convert_file(str(sample_text_file))
+            _args, kwargs = mock_convert.call_args
+            assert kwargs["sanitize"] is True
+
+
+class TestHandleConvertBatchNewDefaults:
+    """Tests for handle_convert_batch new defaults (T019)."""
+
+    def test_clean_auto_disables_no_sdk(self, batch_dir: Path):
+        """clean=True by default silently becomes False when SDK unavailable."""
+        with patch("to_markdown.mcp.tools._check_llm_available", return_value=False):
+            # Should NOT raise
+            result = handle_convert_batch(str(batch_dir))
+            assert "**Directory**:" in result
+
+    def test_sanitize_passed_to_batch(self, batch_dir: Path):
+        """sanitize parameter is forwarded to convert_batch."""
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            patch("to_markdown.core.batch.convert_batch") as mock_batch,
+            patch("to_markdown.core.batch.discover_files", return_value=[Path("f.txt")]),
+        ):
+            from to_markdown.core.batch import BatchResult
+
+            mock_batch.return_value = BatchResult(succeeded=[Path("f.md")])
+            handle_convert_batch(str(batch_dir), sanitize=False)
+            _args, kwargs = mock_batch.call_args
+            assert kwargs["sanitize"] is False
+
+    def test_sanitize_defaults_true_in_batch(self, batch_dir: Path):
+        """sanitize defaults to True in batch."""
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            patch("to_markdown.core.batch.convert_batch") as mock_batch,
+            patch("to_markdown.core.batch.discover_files", return_value=[Path("f.txt")]),
+        ):
+            from to_markdown.core.batch import BatchResult
+
+            mock_batch.return_value = BatchResult(succeeded=[Path("f.md")])
+            handle_convert_batch(str(batch_dir))
+            _args, kwargs = mock_batch.call_args
+            assert kwargs["sanitize"] is True
+
+    def test_summary_still_raises_without_sdk(self, batch_dir: Path):
+        """summary=True still raises when SDK not installed."""
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            pytest.raises(ValueError, match="LLM extras"),
+        ):
+            handle_convert_batch(str(batch_dir), summary=True)
 
 
 class TestHandleConvertBatch:
@@ -218,6 +351,68 @@ class TestHandleStartConversion:
             result = handle_start_conversion(str(batch_dir))
 
         assert "Task ID" in result
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_sanitize_in_command_args(self, mock_spawn, tmp_path: Path):
+        """sanitize parameter is included in command_args JSON."""
+        import json
+
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            handle_start_conversion(str(sample), sanitize=False)
+
+        tasks = store.list()
+        assert len(tasks) == 1
+        args = json.loads(tasks[0].command_args)
+        assert args["sanitize"] is False
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_sanitize_defaults_true_in_background(self, mock_spawn, tmp_path: Path):
+        """sanitize defaults to True in background command_args."""
+        import json
+
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with patch("to_markdown.mcp.background_tools._get_task_store", return_value=store):
+            handle_start_conversion(str(sample))
+
+        tasks = store.list()
+        args = json.loads(tasks[0].command_args)
+        assert args["sanitize"] is True
+
+    @patch("to_markdown.core.worker.spawn_worker")
+    def test_clean_auto_disables_in_background(self, mock_spawn, tmp_path: Path):
+        """clean=True auto-disables when LLM unavailable in background start."""
+        import json
+
+        from to_markdown.mcp.tools import handle_start_conversion
+
+        mock_spawn.return_value = 42
+        store = self._make_store(tmp_path)
+        sample = tmp_path / "file.pdf"
+        sample.write_text("content")
+
+        with (
+            patch("to_markdown.mcp.background_tools._check_llm_available", return_value=False),
+            patch("to_markdown.mcp.background_tools._get_task_store", return_value=store),
+        ):
+            # Should NOT raise even though clean defaults to True
+            handle_start_conversion(str(sample))
+
+        tasks = store.list()
+        args = json.loads(tasks[0].command_args)
+        assert args["clean"] is False
 
 
 class TestHandleGetTaskStatus:
@@ -369,3 +564,36 @@ class TestHandleCancelTask:
             pytest.raises(ValueError, match="not found"),
         ):
             handle_cancel_task("nonexistent")
+
+
+# ---- T019: _validate_llm_flags tests ----
+
+
+class TestValidateLlmFlags:
+    """Tests for _validate_llm_flags (no longer checks clean)."""
+
+    def test_no_flags_returns_none(self):
+        """No flags set should return without error."""
+        _validate_llm_flags(summary=False, images=False)
+
+    def test_summary_without_sdk_raises(self):
+        """summary=True without SDK raises ValueError."""
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
+            pytest.raises(ValueError, match="LLM extras"),
+        ):
+            _validate_llm_flags(summary=True, images=False)
+
+    def test_images_without_api_key_raises(self, monkeypatch: pytest.MonkeyPatch):
+        """images=True without API key raises ValueError."""
+        monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+        with (
+            patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
+            pytest.raises(ValueError, match="GEMINI_API_KEY"),
+        ):
+            _validate_llm_flags(summary=False, images=True)
+
+    def test_does_not_accept_clean_parameter(self):
+        """_validate_llm_flags no longer accepts clean parameter."""
+        with pytest.raises(TypeError):
+            _validate_llm_flags(clean=True, summary=False, images=False)

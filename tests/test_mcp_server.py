@@ -95,7 +95,7 @@ class TestToolSchemas:
     def test_convert_file_optional_params(self):
         tool = self._get_tool("convert_file")
         props = tool.parameters.get("properties", {})
-        for param in ["clean", "summary", "images"]:
+        for param in ["clean", "summary", "images", "sanitize"]:
             assert param in props
 
     def test_convert_batch_has_directory_path_param(self):
@@ -108,6 +108,16 @@ class TestToolSchemas:
         tool = self._get_tool("convert_batch")
         props = tool.parameters.get("properties", {})
         assert "recursive" in props
+
+    def test_convert_batch_has_sanitize_param(self):
+        tool = self._get_tool("convert_batch")
+        props = tool.parameters.get("properties", {})
+        assert "sanitize" in props
+
+    def test_start_conversion_has_sanitize_param(self):
+        tool = self._get_tool("start_conversion")
+        props = tool.parameters.get("properties", {})
+        assert "sanitize" in props
 
     def test_start_conversion_has_file_path_param(self):
         tool = self._get_tool("start_conversion")

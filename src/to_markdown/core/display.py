@@ -39,6 +39,7 @@ def run_batch(
     clean: bool,
     summary: bool,
     images: bool,
+    sanitize: bool = True,
     fail_fast: bool,
     quiet: bool,
     verbose: int,
@@ -78,6 +79,7 @@ def run_batch(
         clean=clean,
         summary=summary,
         images=images,
+        sanitize=sanitize,
         fail_fast=fail_fast,
         quiet=quiet,
     )

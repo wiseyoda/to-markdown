@@ -12,6 +12,7 @@
 | Typer | 0.24.0+ | CLI framework (type-safe, auto-help) | D-19 |
 | ruff | 0.15.2+ | Linting + formatting (2026 style guide) | D-19 |
 | pytest | 9.1+ | Test framework | D-19 |
+| pytest-asyncio | 0.25+ | Async test support | D-79 |
 | pytest-cov | 7.0.0+ | Coverage reporting | D-32 |
 | syrupy | 5.1.0+ | Snapshot/golden file testing | D-33 |
 
@@ -70,11 +71,13 @@ Gemini CLI. Uses stdio transport (D-64). Optional dependency via `[mcp]` extras 
 ## Constraints
 
 - Core conversion MUST work offline (no LLM required)
-- Smart features (--summary, --images) require GEMINI_API_KEY
+- Clean auto-enables when GEMINI_API_KEY is set; --no-clean to disable (D-76)
+- Smart features (--summary, --images) require explicit flags and GEMINI_API_KEY
+- Content sanitization on by default; --no-sanitize to disable (D-77)
 - LLM dependencies are optional extras (`[llm]`)
-- Single-file processing first; batch processing is a later phase (D-24)
 - No server/HTTP dependencies - CLI only (D-26)
 - Kreuzberg pinned to specific version for API stability
+- Async LLM calls bounded by PARALLEL_LLM_MAX_CONCURRENCY semaphore (D-78)
 
 ---
-*Version: 2.0.0 | Last Updated: 2026-02-25*
+*Version: 3.0.0 | Last Updated: 2026-02-27*

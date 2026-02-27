@@ -29,14 +29,14 @@ def _check_llm_available() -> bool:
         return False
 
 
-def _validate_llm_flags(*, clean: bool, summary: bool, images: bool) -> None:
-    """Validate LLM flags are usable."""
-    if not (clean or summary or images):
+def _validate_llm_flags(*, summary: bool, images: bool) -> None:
+    """Validate LLM flags are usable (summary and images only; clean auto-disables)."""
+    if not (summary or images):
         return
 
     if not _check_llm_available():
         msg = (
-            "Smart features (clean, summary, images) require the LLM extras. "
+            "Smart features (summary, images) require the LLM extras. "
             "Install with: uv sync --extra llm"
         )
         raise ValueError(msg)
@@ -52,9 +52,10 @@ def _validate_llm_flags(*, clean: bool, summary: bool, images: bool) -> None:
 def handle_start_conversion(
     file_path: str,
     *,
-    clean: bool = False,
+    clean: bool = True,
     summary: bool = False,
     images: bool = False,
+    sanitize: bool = True,
 ) -> str:
     """Start a background conversion and return task ID immediately."""
     path = Path(file_path)
@@ -62,8 +63,12 @@ def handle_start_conversion(
         msg = f"File or directory not found: {file_path}"
         raise ValueError(msg)
 
-    if clean or summary or images:
-        _validate_llm_flags(clean=clean, summary=summary, images=images)
+    # Auto-disable clean if LLM unavailable
+    if clean and (not _check_llm_available() or not os.environ.get(GEMINI_API_KEY_ENV)):
+        clean = False
+
+    if summary or images:
+        _validate_llm_flags(summary=summary, images=images)
 
     store = _get_task_store()
     is_batch = path.is_dir()
@@ -76,6 +81,7 @@ def handle_start_conversion(
             "clean": clean,
             "summary": summary,
             "images": images,
+            "sanitize": sanitize,
             "is_batch": is_batch,
         }
     )

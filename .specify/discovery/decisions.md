@@ -617,3 +617,93 @@
 - **Decision**: Add `[mcp]` optional dependency group in pyproject.toml. Core CLI unaffected.
 - **Alternatives**: Make mcp a core dependency
 - **Consequences**: Minimal install for CLI-only users; follows [llm] extras pattern
+
+#### D-71: Shell Alias for Installation
+- **Phase**: 0120 - Easy Install
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need `to-markdown` command available globally without PyPI publish
+- **Decision**: Shell alias `alias to-markdown='uv run --directory /path to-markdown'` in ~/.zshrc. PowerShell uses function (not alias) for `@args` passthrough.
+- **Alternatives**: pipx install, symlink, wrapper script
+- **Consequences**: Simple, reversible; requires uv installed; works across shells
+
+#### D-72: .env in Project Directory
+- **Phase**: 0120 - Easy Install
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Where to store GEMINI_API_KEY during setup
+- **Decision**: .env file in project root directory. python-dotenv already loads from CWD.
+- **Alternatives**: ~/.config/to-markdown/.env, system env vars only
+- **Consequences**: Works out of the box with existing dotenv loading
+
+#### D-73: Idempotent Alias Installation
+- **Phase**: 0120 - Easy Install
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Running install.sh multiple times shouldn't duplicate the alias
+- **Decision**: Check `grep -q "alias to-markdown="` before appending to RC file.
+- **Alternatives**: Always append (causes duplicates), replace existing
+- **Consequences**: Safe to re-run installer
+
+#### D-74: Windows Execution Policy Check
+- **Phase**: 0120 - Easy Install
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: PowerShell may have Restricted execution policy
+- **Decision**: Check execution policy first, exit with instructions if Restricted.
+- **Alternatives**: Bypass with -ExecutionPolicy flag
+- **Consequences**: Transparent failure with clear fix instructions
+
+#### D-75: Tesseract as Optional Non-blocking Step
+- **Phase**: 0120 - Easy Install
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Tesseract needed for OCR but not for basic conversion
+- **Decision**: Offer Tesseract installation but don't require it. Non-blocking optional step.
+- **Alternatives**: Require Tesseract, skip entirely
+- **Consequences**: Users get working tool immediately; OCR available if they opt in
+
+#### D-76: Clean by Default
+- **Phase**: 0125 - Smart Pipeline Improvements
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: User wants clean to be on by default for better out-of-box experience
+- **Decision**: Auto-enable `--clean` when GEMINI_API_KEY is set and google-genai SDK is importable. `--no-clean` flag to opt out. No error when LLM unavailable — silently degrade.
+- **Alternatives**: Keep clean as opt-in flag, always-on with error
+- **Consequences**: Better default UX; requires silent degradation path; validate_api_key only checks summary/images
+
+#### D-77: Content Sanitization for Prompt Injection
+- **Phase**: 0125 - Smart Pipeline Improvements
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Extracted content may contain non-visible Unicode that enables prompt injection
+- **Decision**: New `core/sanitize.py` module strips zero-width chars (12), control chars (28), and bidirectional overrides (9). Enabled by default, `--no-sanitize` to disable. `sanitized: true` added to YAML frontmatter when content was modified.
+- **Alternatives**: Regex-based filtering, allowlist-only approach, no sanitization
+- **Consequences**: Safer LLM consumption of extracted content; minimal performance overhead
+
+#### D-78: Parallel LLM Calls via asyncio
+- **Phase**: 0125 - Smart Pipeline Improvements
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Image-heavy documents with --images are slow (sequential API calls)
+- **Decision**: Use `asyncio.gather()` with `asyncio.Semaphore(5)` for parallel LLM calls. Clean + images run concurrently; summary runs after clean completes (depends on cleaned content). google-genai async API: `client.aio.models.generate_content()`.
+- **Alternatives**: ThreadPoolExecutor, multiprocessing, keep sequential
+- **Consequences**: ~4x speedup on image-heavy docs; requires async versions of all smart modules
+
+#### D-79: Single asyncio.run() Boundary
+- **Phase**: 0125 - Smart Pipeline Improvements
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Need to keep convert_file() and convert_to_string() synchronous for backward compatibility
+- **Decision**: Only `_build_content()` calls `asyncio.run()`. Internal `_build_content_async()` handles all async orchestration. All smart module async functions are awaited, never calling asyncio.run() themselves.
+- **Alternatives**: Make convert_file async (breaking change), multiple asyncio.run() calls
+- **Consequences**: Clean async boundary; backward-compatible public API; tests use pytest-asyncio
+
+#### D-80: Sanitize Character Set Selection
+- **Phase**: 0125 - Smart Pipeline Improvements
+- **Status**: Decided
+- **Confidence**: High
+- **Context**: Which Unicode characters to strip for prompt injection prevention
+- **Decision**: Three frozen sets in constants.py: SANITIZE_ZERO_WIDTH_CHARS (U+200B-U+200F, U+FEFF, etc.), SANITIZE_CONTROL_CHARS (U+0000-U+0008, U+000E-U+001F, U+007F), SANITIZE_DIRECTIONAL_CHARS (U+202A-U+202E, U+2066-U+2069). Preserves normal whitespace (space, tab, newline, carriage return).
+- **Alternatives**: Strip all non-printable, regex-based approach
+- **Consequences**: Precise targeting; preserves document formatting; constants are easily auditable

@@ -93,6 +93,7 @@ def convert_batch(
     clean: bool = False,
     summary: bool = False,
     images: bool = False,
+    sanitize: bool = True,
     fail_fast: bool = False,
     quiet: bool = False,
 ) -> BatchResult:
@@ -106,6 +107,7 @@ def convert_batch(
         clean: If True, apply LLM artifact repair to each file.
         summary: If True, generate summary for each file.
         images: If True, describe images for each file.
+        sanitize: If True, apply prompt injection sanitization to output.
         fail_fast: If True, stop on first error.
         quiet: If True, suppress progress output.
 
@@ -130,6 +132,7 @@ def convert_batch(
                     clean=clean,
                     summary=summary,
                     images=images,
+                    sanitize=sanitize,
                 )
                 result.succeeded.append(converted)
                 logger.info("Converted: %s", file_path.name)

@@ -303,3 +303,87 @@ class TestRunWorkerBatch:
         mock_batch.assert_called_once()
         fetched = store.get(task.id)
         assert fetched.status.value == TASK_STATUS_COMPLETED
+
+
+# ---- T021: no_sanitize in background processing ----
+
+
+class TestRunWorkerSanitize:
+    """Tests for sanitize flag passthrough in run_worker()."""
+
+    @patch("to_markdown.core.pipeline.convert_file")
+    def test_default_sanitize_true(self, mock_convert, store, store_dir: Path):
+        """When sanitize is absent, it defaults to True."""
+        from to_markdown.core.worker import run_worker
+
+        task = store.create(
+            "/path/to/file.pdf",
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                }
+            ),
+        )
+        mock_convert.return_value = Path("/path/to/file.md")
+
+        run_worker(task.id, store)
+
+        call_kwargs = mock_convert.call_args[1]
+        assert call_kwargs["sanitize"] is True
+
+    @patch("to_markdown.core.pipeline.convert_file")
+    def test_sanitize_true_explicit(self, mock_convert, store, store_dir: Path):
+        """When sanitize is explicitly True, sanitize should be True."""
+        from to_markdown.core.worker import run_worker
+
+        task = store.create(
+            "/path/to/file.pdf",
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                    "sanitize": True,
+                }
+            ),
+        )
+        mock_convert.return_value = Path("/path/to/file.md")
+
+        run_worker(task.id, store)
+
+        call_kwargs = mock_convert.call_args[1]
+        assert call_kwargs["sanitize"] is True
+
+    @patch("to_markdown.core.pipeline.convert_file")
+    def test_sanitize_false_disables(self, mock_convert, store, store_dir: Path):
+        """When sanitize is False, sanitize should be False."""
+        from to_markdown.core.worker import run_worker
+
+        task = store.create(
+            "/path/to/file.pdf",
+            command_args=json.dumps(
+                {
+                    "input_path": "/path/to/file.pdf",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                    "sanitize": False,
+                }
+            ),
+        )
+        mock_convert.return_value = Path("/path/to/file.md")
+
+        run_worker(task.id, store)
+
+        call_kwargs = mock_convert.call_args[1]
+        assert call_kwargs["sanitize"] is False

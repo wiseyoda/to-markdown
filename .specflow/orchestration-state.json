@@ -5,7 +5,7 @@
     "name": "to-markdown",
     "path": "/Users/ppatterson/dev/to-markdown"
   },
-  "last_updated": "2026-02-27T13:48:17.310Z",
+  "last_updated": "2026-02-27T14:36:09.856Z",
   "orchestration": {
     "phase": {
       "id": null,
@@ -14,16 +14,13 @@
       "branch": null,
       "status": "not_started",
       "goals": [
-        "One-command macOS install (install.sh)",
-        "One-command Windows install (install.ps1)",
-        "Interactive configuration wizard (--setup)",
-        "Step-by-step INSTALL.md for non-technical users",
-        "Clean uninstall scripts",
-        "Tests for install logic and config wizard"
+        "Clean by default when GEMINI_API_KEY is set with --no-clean opt-out",
+        "Prompt injection filtering (hidden text, control chars, Unicode abuse) with --no-sanitize opt-out",
+        "Parallel LLM calls via asyncio for image descriptions and clean chunks (~4x speedup)"
       ],
       "hasUserGate": true,
       "userGateStatus": "confirmed",
-      "userGateCriteria": "**USER GATE**: Fresh macOS/Windows machine: clone, run install script, `to-markdown` works"
+      "userGateCriteria": "**USER GATE**: Clean runs by default, sanitization filters prompt injection, image descriptions parallelized"
     },
     "next_phase": {
       "number": "0130",
@@ -136,6 +133,15 @@
         "phase_name": "Easy Install",
         "branch": "0120-easy-install",
         "completed_at": "2026-02-27T13:48:17.309Z",
+        "tasks_completed": 0,
+        "tasks_total": 0
+      },
+      {
+        "type": "phase_completed",
+        "phase_number": "0125",
+        "phase_name": "Smart Pipeline Improvements",
+        "branch": "0125-smart-pipeline-improvements",
+        "completed_at": "2026-02-27T14:36:09.856Z",
         "tasks_completed": 0,
         "tasks_total": 0
       }
