@@ -12,7 +12,7 @@ from to_markdown.core.constants import (
     EXIT_SUCCESS,
 )
 from to_markdown.core.extraction import UnsupportedFormatError
-from to_markdown.core.pipeline import OutputExistsError, convert_file
+from to_markdown.core.pipeline import OutputExistsError, convert_file, convert_file_async
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +147,58 @@ def convert_batch(
                 logger.warning("Failed: %s - %s", file_path.name, exc)
                 if fail_fast:
                     break
+
+    return result
+
+
+async def convert_batch_async(
+    files: list[Path],
+    output_dir: Path | None = None,
+    *,
+    batch_root: Path | None = None,
+    force: bool = False,
+    clean: bool = False,
+    summary: bool = False,
+    images: bool = False,
+    sanitize: bool = True,
+    fail_fast: bool = False,
+) -> BatchResult:
+    """Async version of convert_batch() for use inside a running event loop (e.g. MCP).
+
+    Same behavior as convert_batch() but calls convert_file_async() directly,
+    avoiding the asyncio.run() call that would crash inside FastMCP's event loop.
+    No progress bar (MCP always passes quiet=True).
+    """
+    result = BatchResult()
+
+    for file_path in files:
+        out = None
+        if output_dir is not None:
+            out = _resolve_batch_output(file_path, output_dir, batch_root)
+
+        try:
+            converted = await convert_file_async(
+                file_path,
+                output_path=out,
+                force=force,
+                clean=clean,
+                summary=summary,
+                images=images,
+                sanitize=sanitize,
+            )
+            result.succeeded.append(converted)
+            logger.info("Converted: %s", file_path.name)
+        except UnsupportedFormatError as exc:
+            result.skipped.append((file_path, str(exc)))
+            logger.debug("Skipped (unsupported): %s", file_path.name)
+        except OutputExistsError as exc:
+            result.skipped.append((file_path, f"Output exists: {exc}"))
+            logger.debug("Skipped (exists): %s", file_path.name)
+        except Exception as exc:
+            result.failed.append((file_path, str(exc)))
+            logger.warning("Failed: %s - %s", file_path.name, exc)
+            if fail_fast:
+                break
 
     return result
 

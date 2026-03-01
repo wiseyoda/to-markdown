@@ -113,6 +113,74 @@ def convert_to_string(
     )
 
 
+async def convert_file_async(
+    input_path: Path,
+    output_path: Path | None = None,
+    *,
+    force: bool = False,
+    clean: bool = False,
+    summary: bool = False,
+    images: bool = False,
+    sanitize: bool = True,
+) -> Path:
+    """Async version of convert_file() for use inside a running event loop (e.g. MCP).
+
+    Same behavior as convert_file() but awaits _build_content_async() directly,
+    avoiding the asyncio.run() call that would crash inside FastMCP's event loop.
+    """
+    input_path = Path(input_path).resolve()
+    if not input_path.exists():
+        msg = f"File not found: {input_path}"
+        raise FileNotFoundError(msg)
+
+    resolved_output = _resolve_output_path(input_path, output_path)
+
+    if resolved_output.exists() and not force:
+        msg = f"Output file already exists: {resolved_output} (use --force to overwrite)"
+        raise OutputExistsError(msg)
+
+    markdown = await _build_content_async(
+        input_path,
+        clean=clean,
+        summary=summary,
+        images=images,
+        sanitize=sanitize,
+    )
+
+    resolved_output.parent.mkdir(parents=True, exist_ok=True)
+    resolved_output.write_text(markdown, encoding="utf-8")
+    logger.info("Wrote: %s", resolved_output)
+
+    return resolved_output
+
+
+async def convert_to_string_async(
+    input_path: Path,
+    *,
+    clean: bool = False,
+    summary: bool = False,
+    images: bool = False,
+    sanitize: bool = True,
+) -> str:
+    """Async version of convert_to_string() for use inside a running event loop (e.g. MCP).
+
+    Same behavior as convert_to_string() but awaits _build_content_async() directly,
+    avoiding the asyncio.run() call that would crash inside FastMCP's event loop.
+    """
+    input_path = Path(input_path).resolve()
+    if not input_path.exists():
+        msg = f"File not found: {input_path}"
+        raise FileNotFoundError(msg)
+
+    return await _build_content_async(
+        input_path,
+        clean=clean,
+        summary=summary,
+        images=images,
+        sanitize=sanitize,
+    )
+
+
 def _build_content(
     input_path: Path,
     *,

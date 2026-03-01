@@ -1,7 +1,7 @@
 """Tests for MCP tool handlers (mcp/tools.py)."""
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -20,72 +20,75 @@ from to_markdown.mcp.tools import (
 
 
 class TestHandleConvertFile:
-    """Tests for handle_convert_file."""
+    """Tests for handle_convert_file (async)."""
 
-    def test_success_returns_structured_response(self, sample_text_file: Path):
-        result = handle_convert_file(str(sample_text_file))
+    async def test_success_returns_structured_response(self, sample_text_file: Path):
+        result = await handle_convert_file(str(sample_text_file))
         assert "**Source**: sample.txt" in result
         assert "**Format**: txt" in result
         assert "**Characters**:" in result
         assert "---" in result
         assert "Hello" in result
 
-    def test_file_not_found(self, tmp_path: Path):
+    async def test_file_not_found(self, tmp_path: Path):
         missing = str(tmp_path / "nonexistent.pdf")
         with pytest.raises(ValueError, match="File not found"):
-            handle_convert_file(missing)
+            await handle_convert_file(missing)
 
-    def test_not_a_file(self, tmp_path: Path):
+    async def test_not_a_file(self, tmp_path: Path):
         with pytest.raises(ValueError, match="Not a file"):
-            handle_convert_file(str(tmp_path))
+            await handle_convert_file(str(tmp_path))
 
-    def test_output_truncation(self, sample_text_file: Path):
+    async def test_output_truncation(self, sample_text_file: Path):
         huge_content = "x" * (MAX_MCP_OUTPUT_CHARS + 1_000)
         with patch(
-            "to_markdown.core.pipeline.convert_to_string",
+            "to_markdown.core.pipeline.convert_to_string_async",
+            new_callable=AsyncMock,
             return_value=huge_content,
         ):
-            result = handle_convert_file(str(sample_text_file))
+            result = await handle_convert_file(str(sample_text_file))
             assert "truncated" in result.lower()
             assert str(MAX_MCP_OUTPUT_CHARS) in result.replace(",", "")
 
-    def test_features_listed_in_response(
+    async def test_features_listed_in_response(
         self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setenv("GEMINI_API_KEY", "test-key")
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
             patch(
-                "to_markdown.core.pipeline.convert_to_string",
+                "to_markdown.core.pipeline.convert_to_string_async",
+                new_callable=AsyncMock,
                 return_value="---\ncontent\n",
             ),
         ):
-            result = handle_convert_file(str(sample_text_file), clean=True, summary=True)
+            result = await handle_convert_file(str(sample_text_file), clean=True, summary=True)
             assert "**Features**: clean, summary" in result
 
-    def test_clean_default_true(self, sample_text_file: Path):
+    async def test_clean_default_true(self, sample_text_file: Path):
         """clean=True by default; auto-disables when LLM unavailable."""
         with patch("to_markdown.mcp.tools._check_llm_available", return_value=False):
             # Should NOT raise - clean auto-disables silently
-            result = handle_convert_file(str(sample_text_file))
+            result = await handle_convert_file(str(sample_text_file))
             assert "**Source**: sample.txt" in result
 
-    def test_clean_auto_disables_no_sdk(self, sample_text_file: Path):
+    async def test_clean_auto_disables_no_sdk(self, sample_text_file: Path):
         """clean=True silently becomes False when SDK is not installed."""
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
             patch(
-                "to_markdown.core.pipeline.convert_to_string",
+                "to_markdown.core.pipeline.convert_to_string_async",
+                new_callable=AsyncMock,
                 return_value="---\ncontent\n",
             ) as mock_convert,
         ):
-            handle_convert_file(str(sample_text_file))
+            await handle_convert_file(str(sample_text_file))
             # clean should have been auto-disabled to False
             _args, kwargs = mock_convert.call_args
             assert kwargs["clean"] is False
             assert kwargs["sanitize"] is True
 
-    def test_clean_auto_disables_no_api_key(
+    async def test_clean_auto_disables_no_api_key(
         self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """clean=True silently becomes False when GEMINI_API_KEY is not set."""
@@ -93,16 +96,17 @@ class TestHandleConvertFile:
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
             patch(
-                "to_markdown.core.pipeline.convert_to_string",
+                "to_markdown.core.pipeline.convert_to_string_async",
+                new_callable=AsyncMock,
                 return_value="---\ncontent\n",
             ) as mock_convert,
         ):
-            handle_convert_file(str(sample_text_file))
+            await handle_convert_file(str(sample_text_file))
             # clean should have been auto-disabled
             _args, kwargs = mock_convert.call_args
             assert kwargs["clean"] is False
 
-    def test_clean_stays_enabled_when_llm_available(
+    async def test_clean_stays_enabled_when_llm_available(
         self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """clean=True stays True when SDK installed and API key set."""
@@ -110,23 +114,24 @@ class TestHandleConvertFile:
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
             patch(
-                "to_markdown.core.pipeline.convert_to_string",
+                "to_markdown.core.pipeline.convert_to_string_async",
+                new_callable=AsyncMock,
                 return_value="---\ncontent\n",
             ) as mock_convert,
         ):
-            handle_convert_file(str(sample_text_file))
+            await handle_convert_file(str(sample_text_file))
             _args, kwargs = mock_convert.call_args
             assert kwargs["clean"] is True
 
-    def test_summary_still_raises_without_sdk(self, sample_text_file: Path):
+    async def test_summary_still_raises_without_sdk(self, sample_text_file: Path):
         """summary=True still raises when SDK not installed (only clean auto-disables)."""
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
             pytest.raises(ValueError, match="LLM extras"),
         ):
-            handle_convert_file(str(sample_text_file), summary=True)
+            await handle_convert_file(str(sample_text_file), summary=True)
 
-    def test_images_still_raises_without_api_key(
+    async def test_images_still_raises_without_api_key(
         self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
     ):
         """images=True still raises when API key not set."""
@@ -135,108 +140,120 @@ class TestHandleConvertFile:
             patch("to_markdown.mcp.tools._check_llm_available", return_value=True),
             pytest.raises(ValueError, match="GEMINI_API_KEY"),
         ):
-            handle_convert_file(str(sample_text_file), images=True)
+            await handle_convert_file(str(sample_text_file), images=True)
 
-    def test_sanitize_passed_through(self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch):
-        """sanitize parameter is forwarded to convert_to_string."""
+    async def test_sanitize_passed_through(
+        self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """sanitize parameter is forwarded to convert_to_string_async."""
         monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
             patch(
-                "to_markdown.core.pipeline.convert_to_string",
+                "to_markdown.core.pipeline.convert_to_string_async",
+                new_callable=AsyncMock,
                 return_value="---\ncontent\n",
             ) as mock_convert,
         ):
-            handle_convert_file(str(sample_text_file), sanitize=False)
+            await handle_convert_file(str(sample_text_file), sanitize=False)
             _args, kwargs = mock_convert.call_args
             assert kwargs["sanitize"] is False
 
-    def test_sanitize_defaults_true(self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch):
+    async def test_sanitize_defaults_true(
+        self, sample_text_file: Path, monkeypatch: pytest.MonkeyPatch
+    ):
         """sanitize defaults to True."""
         monkeypatch.delenv("GEMINI_API_KEY", raising=False)
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
             patch(
-                "to_markdown.core.pipeline.convert_to_string",
+                "to_markdown.core.pipeline.convert_to_string_async",
+                new_callable=AsyncMock,
                 return_value="---\ncontent\n",
             ) as mock_convert,
         ):
-            handle_convert_file(str(sample_text_file))
+            await handle_convert_file(str(sample_text_file))
             _args, kwargs = mock_convert.call_args
             assert kwargs["sanitize"] is True
 
 
 class TestHandleConvertBatchNewDefaults:
-    """Tests for handle_convert_batch new defaults (T019)."""
+    """Tests for handle_convert_batch new defaults (T019, async)."""
 
-    def test_clean_auto_disables_no_sdk(self, batch_dir: Path):
+    async def test_clean_auto_disables_no_sdk(self, batch_dir: Path):
         """clean=True by default silently becomes False when SDK unavailable."""
         with patch("to_markdown.mcp.tools._check_llm_available", return_value=False):
             # Should NOT raise
-            result = handle_convert_batch(str(batch_dir))
+            result = await handle_convert_batch(str(batch_dir))
             assert "**Directory**:" in result
 
-    def test_sanitize_passed_to_batch(self, batch_dir: Path):
-        """sanitize parameter is forwarded to convert_batch."""
+    async def test_sanitize_passed_to_batch(self, batch_dir: Path):
+        """sanitize parameter is forwarded to convert_batch_async."""
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
-            patch("to_markdown.core.batch.convert_batch") as mock_batch,
+            patch(
+                "to_markdown.core.batch.convert_batch_async",
+                new_callable=AsyncMock,
+            ) as mock_batch,
             patch("to_markdown.core.batch.discover_files", return_value=[Path("f.txt")]),
         ):
             from to_markdown.core.batch import BatchResult
 
             mock_batch.return_value = BatchResult(succeeded=[Path("f.md")])
-            handle_convert_batch(str(batch_dir), sanitize=False)
+            await handle_convert_batch(str(batch_dir), sanitize=False)
             _args, kwargs = mock_batch.call_args
             assert kwargs["sanitize"] is False
 
-    def test_sanitize_defaults_true_in_batch(self, batch_dir: Path):
+    async def test_sanitize_defaults_true_in_batch(self, batch_dir: Path):
         """sanitize defaults to True in batch."""
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
-            patch("to_markdown.core.batch.convert_batch") as mock_batch,
+            patch(
+                "to_markdown.core.batch.convert_batch_async",
+                new_callable=AsyncMock,
+            ) as mock_batch,
             patch("to_markdown.core.batch.discover_files", return_value=[Path("f.txt")]),
         ):
             from to_markdown.core.batch import BatchResult
 
             mock_batch.return_value = BatchResult(succeeded=[Path("f.md")])
-            handle_convert_batch(str(batch_dir))
+            await handle_convert_batch(str(batch_dir))
             _args, kwargs = mock_batch.call_args
             assert kwargs["sanitize"] is True
 
-    def test_summary_still_raises_without_sdk(self, batch_dir: Path):
+    async def test_summary_still_raises_without_sdk(self, batch_dir: Path):
         """summary=True still raises when SDK not installed."""
         with (
             patch("to_markdown.mcp.tools._check_llm_available", return_value=False),
             pytest.raises(ValueError, match="LLM extras"),
         ):
-            handle_convert_batch(str(batch_dir), summary=True)
+            await handle_convert_batch(str(batch_dir), summary=True)
 
 
 class TestHandleConvertBatch:
-    """Tests for handle_convert_batch."""
+    """Tests for handle_convert_batch (async)."""
 
-    def test_success_with_mixed_results(self, batch_dir: Path):
-        result = handle_convert_batch(str(batch_dir))
+    async def test_success_with_mixed_results(self, batch_dir: Path):
+        result = await handle_convert_batch(str(batch_dir))
         assert "**Directory**:" in result
         assert "**Total files**:" in result
         assert "**Succeeded**:" in result
 
-    def test_directory_not_found(self, tmp_path: Path):
+    async def test_directory_not_found(self, tmp_path: Path):
         missing = str(tmp_path / "nonexistent_dir")
         with pytest.raises(ValueError, match="Directory not found"):
-            handle_convert_batch(missing)
+            await handle_convert_batch(missing)
 
-    def test_not_a_directory(self, sample_text_file: Path):
+    async def test_not_a_directory(self, sample_text_file: Path):
         with pytest.raises(ValueError, match="Not a directory"):
-            handle_convert_batch(str(sample_text_file))
+            await handle_convert_batch(str(sample_text_file))
 
-    def test_empty_directory(self, empty_dir: Path):
+    async def test_empty_directory(self, empty_dir: Path):
         with pytest.raises(ValueError, match="No supported files"):
-            handle_convert_batch(str(empty_dir))
+            await handle_convert_batch(str(empty_dir))
 
-    def test_non_recursive(self, batch_dir: Path):
-        result = handle_convert_batch(str(batch_dir), recursive=False)
+    async def test_non_recursive(self, batch_dir: Path):
+        result = await handle_convert_batch(str(batch_dir), recursive=False)
         assert "**Recursive**: False" in result
 
 

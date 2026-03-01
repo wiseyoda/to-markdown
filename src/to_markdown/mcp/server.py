@@ -25,7 +25,7 @@ mcp = FastMCP(MCP_SERVER_NAME, instructions=MCP_SERVER_INSTRUCTIONS)
 
 
 @mcp.tool()
-def convert_file(
+async def convert_file(
     file_path: Annotated[str, Field(description="Absolute path to the file to convert")],
     clean: Annotated[
         bool,
@@ -52,7 +52,7 @@ def convert_file(
     content directly.
     """
     try:
-        return handle_convert_file(
+        return await handle_convert_file(
             file_path,
             clean=clean,
             summary=summary,
@@ -67,7 +67,7 @@ def convert_file(
 
 
 @mcp.tool()
-def convert_batch(
+async def convert_batch(
     directory_path: Annotated[str, Field(description="Absolute path to the directory to convert")],
     recursive: Annotated[bool, Field(description="Scan subdirectories recursively")] = True,
     clean: Annotated[
@@ -94,7 +94,7 @@ def convert_batch(
     formats. Returns a structured summary with per-file results.
     """
     try:
-        return handle_convert_batch(
+        return await handle_convert_batch(
             directory_path,
             recursive=recursive,
             clean=clean,

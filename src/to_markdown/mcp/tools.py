@@ -24,7 +24,7 @@ from to_markdown.mcp.background_tools import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-def handle_convert_file(
+async def handle_convert_file(
     file_path: str,
     *,
     clean: bool = True,
@@ -47,9 +47,9 @@ def handle_convert_file(
 
     _validate_llm_flags(summary=summary, images=images)
 
-    from to_markdown.core.pipeline import convert_to_string
+    from to_markdown.core.pipeline import convert_to_string_async
 
-    content = convert_to_string(
+    content = await convert_to_string_async(
         path, clean=clean, summary=summary, images=images, sanitize=sanitize
     )
 
@@ -80,7 +80,7 @@ def handle_convert_file(
     return "\n".join(lines)
 
 
-def handle_convert_batch(
+async def handle_convert_batch(
     directory_path: str,
     *,
     recursive: bool = True,
@@ -104,14 +104,14 @@ def handle_convert_batch(
 
     _validate_llm_flags(summary=summary, images=images)
 
-    from to_markdown.core.batch import convert_batch, discover_files
+    from to_markdown.core.batch import convert_batch_async, discover_files
 
     files = discover_files(path, recursive=recursive)
     if not files:
         msg = f"No supported files found in: {directory_path}"
         raise ValueError(msg)
 
-    result = convert_batch(
+    result = await convert_batch_async(
         files,
         batch_root=path.resolve(),
         force=True,
@@ -119,7 +119,6 @@ def handle_convert_batch(
         summary=summary,
         images=images,
         sanitize=sanitize,
-        quiet=True,
     )
 
     # Build structured response
