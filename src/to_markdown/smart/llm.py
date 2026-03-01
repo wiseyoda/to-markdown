@@ -16,6 +16,7 @@ from to_markdown.core.constants import (
     GEMINI_API_KEY_ENV,
     GEMINI_DEFAULT_MODEL,
     GEMINI_MODEL_ENV,
+    HTTP_STATUS_RATE_LIMIT,
     LLM_RETRY_MAX_ATTEMPTS,
     LLM_RETRY_MAX_WAIT_SECONDS,
     LLM_RETRY_MIN_WAIT_SECONDS,
@@ -52,7 +53,10 @@ def _is_retryable(exc: BaseException) -> bool:
     """Return True for retryable errors (429 rate limit, 503 server error)."""
     if isinstance(exc, genai_errors.ServerError):
         return True
-    return isinstance(exc, genai_errors.ClientError) and getattr(exc, "code", None) == 429
+    return (
+        isinstance(exc, genai_errors.ClientError)
+        and getattr(exc, "code", None) == HTTP_STATUS_RATE_LIMIT
+    )
 
 
 @retry(

@@ -12,18 +12,20 @@
 
 ### 1. Golden File Tests (Output Quality)
 
-Compare converter output against curated, known-good .md reference files.
+Compare converter output against known-good reference using **syrupy** snapshot testing.
 
-- Location: `tests/golden/{format}/`
-- One golden file per test input file
-- Tests fail if output differs from golden file
-- Golden files are manually reviewed and committed
-- Update golden files intentionally when output format changes
+- **Location**: `tests/test_formats/__snapshots__/` (syrupy Amber `.ambr` files, one per test module)
+- **Mechanism**: Each format test uses the `snapshot` fixture; output is normalized (e.g. fixed
+  `extracted_at` via conftest) then compared with `assert content == snapshot`
+- Tests fail if output differs from the stored snapshot
+- Snapshots are committed and updated intentionally when output format changes: run
+  `pytest --snapshot-update` for the relevant test module, then review and commit
 
 ```python
-def test_pdf_basic(golden_compare):
-    result = convert("tests/fixtures/pdf/basic.pdf")
-    golden_compare(result, "tests/golden/pdf/basic.md")
+def test_simple(self, pdf_simple: Path, snapshot, tmp_path: Path):
+    result = convert_file(pdf_simple, output_path=tmp_path / "out.md")
+    content = result.read_text()
+    assert content == snapshot
 ```
 
 ### 2. Format Coverage Tests
@@ -145,7 +147,7 @@ testing patterns:
 
 - **Async pattern testing**: pytest-asyncio (`asyncio_mode = "auto"`) enables native async test
   functions for testing `generate_async()`, `clean_content_async()`, `describe_images_async()`,
-  and the `_build_content_async()` pipeline orchestrator
+  and the `build_content_async()` pipeline orchestrator (in `core/content_builder.py`)
 - **Sanitization test coverage**: Frozen character sets (SANITIZE_ZERO_WIDTH_CHARS,
   SANITIZE_CONTROL_CHARS, SANITIZE_DIRECTIONAL_CHARS) tested for completeness and immutability;
   SanitizeResult dataclass fields (content, chars_removed, was_modified) verified for all code paths

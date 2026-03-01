@@ -14,6 +14,10 @@ from to_markdown.core.constants import (
     EXIT_BACKGROUND,
     EXIT_ERROR,
     EXIT_SUCCESS,
+    STATUS_COL_ID_WIDTH,
+    STATUS_COL_INPUT_WIDTH,
+    STATUS_COL_STATUS_WIDTH,
+    STATUS_TABLE_SEP_LENGTH,
     TASK_RETENTION_HOURS,
 )
 from to_markdown.core.display import is_glob_pattern
@@ -44,12 +48,18 @@ def handle_status(status_id: str, store) -> None:
             typer.echo("No tasks found.")
             raise typer.Exit(EXIT_SUCCESS)
 
-        typer.echo(f"{'ID':<10} {'Status':<12} {'Input':<40} {'Duration'}")
-        typer.echo("-" * 75)
+        typer.echo(
+            f"{'ID':<{STATUS_COL_ID_WIDTH}} {'Status':<{STATUS_COL_STATUS_WIDTH}} "
+            f"{'Input':<{STATUS_COL_INPUT_WIDTH}} {'Duration'}"
+        )
+        typer.echo("-" * STATUS_TABLE_SEP_LENGTH)
         for task in tasks:
             input_name = Path(task.input_path).name
             duration = f"{task.duration:.1f}s" if task.duration is not None else "-"
-            typer.echo(f"{task.id:<10} {task.status.value:<12} {input_name:<40} {duration}")
+            typer.echo(
+                f"{task.id:<{STATUS_COL_ID_WIDTH}} {task.status.value:<{STATUS_COL_STATUS_WIDTH}} "
+                f"{input_name:<{STATUS_COL_INPUT_WIDTH}} {duration}"
+            )
         raise typer.Exit(EXIT_SUCCESS)
 
     task = store.get(status_id)

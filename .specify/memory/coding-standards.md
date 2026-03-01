@@ -23,6 +23,7 @@ to-markdown/
         __init__.py
         extraction.py      # Kreuzberg adapter interface
         frontmatter.py     # YAML frontmatter composition from metadata
+        content_builder.py # Build markdown content (sync + async; used by pipeline)
         pipeline.py        # Kreuzberg extract -> frontmatter -> async LLM -> output
         constants.py       # ALL project constants (single source of truth)
         batch.py           # Batch processing: file discovery + multi-file conversion
@@ -114,11 +115,12 @@ Each smart module has both sync and async versions:
 - `summarize_content()` / `summarize_content_async()` in summary.py
 - `describe_images()` / `describe_images_async()` in images.py
 
-Pipeline uses async internally via `_build_content_async()` with `asyncio.gather()`:
+Pipeline uses async internally via `build_content_async()` in `core/content_builder.py` with
+`asyncio.gather()`:
 - Clean + images run concurrently (independent data streams)
 - Summary runs after clean completes (depends on cleaned content)
 - `asyncio.Semaphore(PARALLEL_LLM_MAX_CONCURRENCY)` bounds concurrent API calls
-- Single `asyncio.run()` boundary in `_build_content()` — public API stays synchronous
+- Single `asyncio.run()` boundary in `build_content()` — public API stays synchronous
 
 ### Frontmatter Composition
 

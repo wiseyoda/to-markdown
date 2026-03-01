@@ -13,6 +13,16 @@ from to_markdown.core.constants import (
     TASK_ID_LENGTH,
     TASK_LIST_MAX_RESULTS,
     TASK_LOG_DIR,
+    TASK_ROW_COMMAND_ARGS,
+    TASK_ROW_COMPLETED_AT,
+    TASK_ROW_CREATED_AT,
+    TASK_ROW_ERROR,
+    TASK_ROW_ID,
+    TASK_ROW_INPUT_PATH,
+    TASK_ROW_OUTPUT_PATH,
+    TASK_ROW_PID,
+    TASK_ROW_STARTED_AT,
+    TASK_ROW_STATUS,
     TASK_STATUS_CANCELLED,
     TASK_STATUS_COMPLETED,
     TASK_STATUS_FAILED,
@@ -195,7 +205,7 @@ class TaskStore:
             f"SELECT id FROM tasks WHERE status IN ({placeholders}) AND created_at < ?",
             (*cleanable, _hours_ago_iso(max_age_hours)),
         )
-        old_ids = [row[0] for row in cursor.fetchall()]
+        old_ids = [row[TASK_ROW_ID] for row in cursor.fetchall()]
 
         if not old_ids:
             return 0
@@ -242,16 +252,16 @@ class TaskStore:
     def _row_to_task(self, row: tuple) -> Task:
         """Convert a database row to a Task dataclass."""
         return Task(
-            id=row[0],
-            status=TaskStatus(row[1]),
-            input_path=row[2],
-            output_path=row[3],
-            command_args=row[4],
-            created_at=row[5],
-            started_at=row[6],
-            completed_at=row[7],
-            error=row[8],
-            pid=row[9],
+            id=row[TASK_ROW_ID],
+            status=TaskStatus(row[TASK_ROW_STATUS]),
+            input_path=row[TASK_ROW_INPUT_PATH],
+            output_path=row[TASK_ROW_OUTPUT_PATH],
+            command_args=row[TASK_ROW_COMMAND_ARGS],
+            created_at=row[TASK_ROW_CREATED_AT],
+            started_at=row[TASK_ROW_STARTED_AT],
+            completed_at=row[TASK_ROW_COMPLETED_AT],
+            error=row[TASK_ROW_ERROR],
+            pid=row[TASK_ROW_PID],
         )
 
     def close(self) -> None:

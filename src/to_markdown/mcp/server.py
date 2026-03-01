@@ -193,8 +193,8 @@ def get_task_status(
 def list_tasks() -> str:
     """List all recent background conversion tasks.
 
-    Returns a summary of all tasks from the last 24 hours, including
-    their status, input paths, and durations.
+    Returns a summary of all tasks from the retention window (see TASK_RETENTION_HOURS),
+    including their status, input paths, and durations.
     """
     try:
         return handle_list_tasks()

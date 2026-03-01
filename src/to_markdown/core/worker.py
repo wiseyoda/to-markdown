@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from to_markdown.core.constants import (
+    EXIT_ERROR,
     TASK_STATUS_CANCELLED,
     TASK_STATUS_COMPLETED,
     TASK_STATUS_FAILED,
@@ -74,7 +75,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
             status=TASK_STATUS_CANCELLED,
             completed_at=_now_iso(),
         )
-        raise SystemExit(1)
+        raise SystemExit(EXIT_ERROR)
 
     signal.signal(signal.SIGTERM, _handle_sigterm)
 

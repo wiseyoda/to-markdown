@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from to_markdown.core.content_builder import build_content_async
 from to_markdown.core.pipeline import (
     OutputExistsError,
-    _build_content_async,
     convert_file,
     convert_to_string,
 )
@@ -153,7 +153,7 @@ class TestSmartFeatures:
 
         mock_describe = AsyncMock(return_value="## Image Descriptions\n\n### Image 1\n\nA photo.\n")
         with (
-            patch("to_markdown.core.pipeline.extract_file", return_value=mock_result),
+            patch("to_markdown.core.content_builder.extract_file", return_value=mock_result),
             patch("to_markdown.smart.images.describe_images_async", mock_describe),
         ):
             result = convert_file(sample_text_file, images=True)
@@ -174,7 +174,7 @@ class TestSmartFeatures:
         mock_describe = AsyncMock(return_value="## Image Descriptions\n\nimage desc\n")
 
         with (
-            patch("to_markdown.core.pipeline.extract_file", return_value=mock_result),
+            patch("to_markdown.core.content_builder.extract_file", return_value=mock_result),
             patch("to_markdown.smart.clean.clean_content_async", mock_clean),
             patch("to_markdown.smart.images.describe_images_async", mock_describe),
         ):
@@ -206,7 +206,7 @@ class TestSmartFeatures:
         mock_result.images = []
 
         with (
-            patch("to_markdown.core.pipeline.extract_file", return_value=mock_result),
+            patch("to_markdown.core.content_builder.extract_file", return_value=mock_result),
             patch("to_markdown.smart.clean.clean_content_async", side_effect=mock_clean),
             patch(
                 "to_markdown.smart.summary.summarize_content_async",
@@ -267,7 +267,7 @@ class TestSanitize:
         mock_result.tables = []
         mock_result.images = []
 
-        with patch("to_markdown.core.pipeline.extract_file", return_value=mock_result):
+        with patch("to_markdown.core.content_builder.extract_file", return_value=mock_result):
             result = convert_file(sample_text_file)
             output = result.read_text()
             assert "\u200b" not in output
@@ -282,7 +282,7 @@ class TestSanitize:
         mock_result.tables = []
         mock_result.images = []
 
-        with patch("to_markdown.core.pipeline.extract_file", return_value=mock_result):
+        with patch("to_markdown.core.content_builder.extract_file", return_value=mock_result):
             result = convert_file(sample_text_file)
             output = result.read_text()
             assert "sanitized: true" in output
@@ -323,7 +323,7 @@ class TestSanitize:
         mock_result.tables = []
         mock_result.images = []
 
-        with patch("to_markdown.core.pipeline.extract_file", return_value=mock_result):
+        with patch("to_markdown.core.content_builder.extract_file", return_value=mock_result):
             result = convert_to_string(sample_text_file, sanitize=True)
             assert "\u200b" not in result
             assert "sanitized: true" in result
@@ -387,32 +387,32 @@ class TestConvertToString:
 
 
 class TestBuildContentAsync:
-    """Tests for the async core function _build_content_async."""
+    """Tests for the async core function build_content_async."""
 
     def test_build_content_async_is_coroutine(self, sample_text_file: Path):
-        """_build_content_async returns a coroutine."""
-        coro = _build_content_async(sample_text_file)
+        """build_content_async returns a coroutine."""
+        coro = build_content_async(sample_text_file)
         assert asyncio.iscoroutine(coro)
         # Clean up the coroutine to avoid RuntimeWarning
         coro.close()
 
     def test_build_content_async_produces_markdown(self, sample_text_file: Path):
-        """_build_content_async produces valid markdown with frontmatter."""
-        result = asyncio.run(_build_content_async(sample_text_file))
+        """build_content_async produces valid markdown with frontmatter."""
+        result = asyncio.run(build_content_async(sample_text_file))
         assert result.startswith("---\n")
         assert "extracted_at:" in result
         assert "Hello" in result
 
     def test_build_content_async_with_clean(self, sample_text_file: Path):
-        """_build_content_async calls clean_content_async when clean=True."""
+        """build_content_async calls clean_content_async when clean=True."""
         mock_clean = AsyncMock(return_value="async cleaned")
         with patch("to_markdown.smart.clean.clean_content_async", mock_clean):
-            result = asyncio.run(_build_content_async(sample_text_file, clean=True))
+            result = asyncio.run(build_content_async(sample_text_file, clean=True))
             mock_clean.assert_called_once()
             assert "async cleaned" in result
 
     def test_build_content_async_with_summary(self, sample_text_file: Path):
-        """_build_content_async calls summarize_content_async when summary=True."""
+        """build_content_async calls summarize_content_async when summary=True."""
         mock_summarize = AsyncMock(return_value="Async summary.")
         with (
             patch("to_markdown.smart.summary.summarize_content_async", mock_summarize),
@@ -421,7 +421,7 @@ class TestBuildContentAsync:
                 return_value="## Summary\n\nAsync summary.\n",
             ),
         ):
-            result = asyncio.run(_build_content_async(sample_text_file, summary=True))
+            result = asyncio.run(build_content_async(sample_text_file, summary=True))
             mock_summarize.assert_called_once()
             assert "## Summary" in result
 
@@ -438,15 +438,15 @@ class TestBuildContentAsync:
         mock_describe = AsyncMock(return_value="## Image Descriptions\n\nimage\n")
 
         with (
-            patch("to_markdown.core.pipeline.extract_file", return_value=mock_result),
+            patch("to_markdown.core.content_builder.extract_file", return_value=mock_result),
             patch("to_markdown.smart.clean.clean_content_async", mock_clean),
             patch("to_markdown.smart.images.describe_images_async", mock_describe),
             patch(
-                "to_markdown.core.pipeline.asyncio.gather",
+                "to_markdown.core.content_builder.asyncio.gather",
                 wraps=asyncio.gather,
             ) as mock_gather,
         ):
-            result = asyncio.run(_build_content_async(sample_text_file, clean=True, images=True))
+            result = asyncio.run(build_content_async(sample_text_file, clean=True, images=True))
             mock_gather.assert_called_once()
             assert "cleaned" in result
             assert "## Image Descriptions" in result
@@ -460,7 +460,7 @@ class TestAsyncPipeline:
         test_file = tmp_path / "test.txt"
         test_file.write_text("Simple content")
 
-        with patch("to_markdown.core.pipeline.extract_file") as mock_extract:
+        with patch("to_markdown.core.content_builder.extract_file") as mock_extract:
             mock_result = MagicMock()
             mock_result.content = "Extracted content"
             mock_result.metadata = {"format_type": "txt"}
@@ -486,7 +486,7 @@ class TestAsyncPipeline:
             return "## Image Descriptions\n\n### Image 1\n\nA photo\n"
 
         with (
-            patch("to_markdown.core.pipeline.extract_file") as mock_extract,
+            patch("to_markdown.core.content_builder.extract_file") as mock_extract,
             patch("to_markdown.core.sanitize.sanitize_content") as mock_sanitize,
             patch("to_markdown.smart.clean.clean_content_async", side_effect=mock_clean),
             patch(
@@ -520,7 +520,7 @@ class TestAsyncPipeline:
             return "A summary"
 
         with (
-            patch("to_markdown.core.pipeline.extract_file") as mock_extract,
+            patch("to_markdown.core.content_builder.extract_file") as mock_extract,
             patch("to_markdown.core.sanitize.sanitize_content") as mock_sanitize,
             patch(
                 "to_markdown.smart.clean.clean_content_async",
@@ -556,7 +556,7 @@ class TestAsyncPipeline:
         test_file = tmp_path / "test.txt"
         test_file.write_text("content")
 
-        with patch("to_markdown.core.pipeline.extract_file") as mock_extract:
+        with patch("to_markdown.core.content_builder.extract_file") as mock_extract:
             mock_result = MagicMock()
             mock_result.content = "Content with \u200b zero-width"
             mock_result.metadata = {"format_type": "txt"}
@@ -572,7 +572,7 @@ class TestAsyncPipeline:
         test_file = tmp_path / "test.txt"
         test_file.write_text("content")
 
-        with patch("to_markdown.core.pipeline.extract_file") as mock_extract:
+        with patch("to_markdown.core.content_builder.extract_file") as mock_extract:
             mock_result = MagicMock()
             mock_result.content = "Hello\u200bWorld"
             mock_result.metadata = {"format_type": "txt"}
@@ -590,7 +590,7 @@ class TestAsyncPipeline:
         test_file.write_text("content")
 
         with (
-            patch("to_markdown.core.pipeline.extract_file") as mock_extract,
+            patch("to_markdown.core.content_builder.extract_file") as mock_extract,
             patch(
                 "to_markdown.smart.clean.clean_content_async",
                 new_callable=AsyncMock,
@@ -637,7 +637,7 @@ class TestAsyncPipeline:
         test_file.write_text("content")
 
         with (
-            patch("to_markdown.core.pipeline.extract_file") as mock_extract,
+            patch("to_markdown.core.content_builder.extract_file") as mock_extract,
             patch("to_markdown.smart.clean.clean_content_async") as mock_clean,
         ):
             mock_result = MagicMock()
