@@ -147,13 +147,33 @@ Document content:
 """
 
 IMAGE_DESCRIPTION_PROMPT = """\
-Describe this image in detail. The description should be:
-- Factual and objective (not artistic interpretation)
-- Useful for accessibility (screen readers) and LLM consumption
-- Include key visual elements: text, charts, diagrams, photos, colors, layout
-- If it contains a chart or graph, describe the data relationships and trends
-- If it contains text, transcribe the text exactly
-- 2-4 sentences long\
+Analyze this image and extract ALL information as structured markdown.
+
+For CHARTS and GRAPHS:
+- State the chart type and title
+- List every data point with its label and value
+- Note axis labels, scales, and units
+- Describe trends, comparisons, and key takeaways
+
+For TABLES:
+- Reconstruct as a markdown table with all rows and columns
+- Preserve all headers, values, and units exactly as shown
+- Include footnotes or annotations if visible
+
+For DASHBOARDS / KPI CARDS:
+- Extract every metric with its label, value, and context
+- Include variance, percentage changes, and status indicators
+- Note color-coded status (red/yellow/green) as text markers
+
+For TEXT and LABELS:
+- Transcribe all visible text exactly as written
+
+For PHOTOS and DIAGRAMS:
+- Describe the visual content factually
+- Note any embedded text, labels, or annotations
+
+Output clean markdown. Use tables, lists, and headings to organize the data.
+Prioritize completeness — extract every visible number, label, and data point.\
 """
 
 # --- Sanitization ---
@@ -195,6 +215,10 @@ SANITIZE_DIRECTIONAL_CHARS = frozenset(
         "\u2069",  # Pop directional isolate
     }
 )
+
+# --- OCR Fallback ---
+OCR_QUALITY_THRESHOLD = 0.3  # Below this quality score, retry with force_ocr
+OCR_MIN_CONTENT_LENGTH = 50  # Below this char count, retry with force_ocr
 
 # --- Parallel LLM ---
 PARALLEL_LLM_MAX_CONCURRENCY = 5
