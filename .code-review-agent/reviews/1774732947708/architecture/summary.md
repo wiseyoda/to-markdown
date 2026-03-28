@@ -1,3 +1,0 @@
-# Architecture Review Summary
-
-Read all 35 source files across `src/to_markdown/` (cli.py, core/, mcp/, smart/) plus pyproject.toml and CLAUDE.md. Traced the full dependency graph across CLI, MCP, core pipeline, and smart feature modules. Verified no circular dependencies exist. The overall architecture is clean: well-defined layers (CLI -> core -> extraction/smart, MCP -> core), consistent use of lazy imports for optional dependencies, proper async/sync separation for MCP vs CLI paths, and a centralized constants module. Found 2 issues: a medium-severity duplication of LLM availability check functions across 4 modules (6 total copies of 2 utility functions), and a low-severity boundary violation where a private function (`_now_iso`) is imported by 3 external modules.

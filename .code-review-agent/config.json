@@ -1,0 +1,55 @@
+{
+  "schedule": "daily",
+  "categories": {
+    "security": {
+      "enabled": true,
+      "severity_threshold": "medium"
+    },
+    "code-quality": {
+      "enabled": true,
+      "severity_threshold": "medium"
+    },
+    "performance": {
+      "enabled": true,
+      "severity_threshold": "high"
+    },
+    "architecture": {
+      "enabled": true,
+      "severity_threshold": "high"
+    },
+    "testing": {
+      "enabled": true,
+      "severity_threshold": "medium"
+    },
+    "documentation": {
+      "enabled": true,
+      "severity_threshold": "low"
+    },
+    "dependencies": {
+      "enabled": true,
+      "severity_threshold": "medium"
+    },
+    "style": {
+      "enabled": true,
+      "severity_threshold": "low"
+    }
+  },
+  "suppressions": [],
+  "providers": [
+    "claude"
+  ],
+  "linters": {},
+  "autoFix": {
+    "enabled": false,
+    "categories": [
+      "style",
+      "documentation",
+      "dependencies"
+    ]
+  },
+  "github": {
+    "enabled": false,
+    "postComments": false,
+    "createIssues": false
+  }
+}

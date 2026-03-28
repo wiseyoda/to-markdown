@@ -1,1 +1,0 @@
-I ran `ruff check .` across the repository, which covers all Python source files with strict linting rules, and manually reviewed core components like `cli.py`, `pipeline.py`, and `extraction.py`. The repository consistently follows Python community conventions, employs clear and strict type hinting (Python 3.14 target), and uses proper docstrings. No style issues were found.
