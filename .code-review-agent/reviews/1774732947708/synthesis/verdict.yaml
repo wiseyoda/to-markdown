@@ -1,0 +1,325 @@
+verdict:
+  new_findings:
+    - category: "code-quality"
+      severity: "high"
+      title: "Background batch worker breaks glob-based conversions"
+      description: >
+        `run_worker()` treats every background batch job as a directory walk by
+        converting `input_path` to `Path` and passing it to `discover_files()`.
+        The CLI marks glob patterns such as `docs/*.pdf` as `is_batch`, so a
+        background job created from a glob reaches this branch with a
+        non-directory path literal and never resolves the pattern into matching
+        files.
+      why: >
+        Foreground glob conversion works, but the same input fails in background
+        mode because `discover_files()` returns no matches for a glob string and
+        the task is recorded as a completed batch with zero outputs. Users and any
+        automation polling task status get a false success for work that never
+        ran.
+      file: "src/to_markdown/core/worker.py"
+      line: 99
+      confidence: 92
+      suggestedFix: >
+        Persist whether the batch input was a directory or a glob when the task is
+        created, then branch here accordingly. For glob jobs, call
+        `resolve_glob(input_path)` and fail the task if it returns no files
+        instead of sending the pattern through `discover_files()`.
+      codeSnippet: "source = Path(input_path)\nfiles = discover_files(source)"
+      reasoning: "Verified at worker.py:99-100. Path(glob_string) is not a directory so discover_files returns nothing. No existing findings to deduplicate against."
+
+    - category: "code-quality"
+      severity: "medium"
+      title: "Background batch tasks hide per-file failures"
+      description: >
+        After `convert_batch()` returns, `run_worker()` always stores
+        `TASK_STATUS_COMPLETED` for the task regardless of whether `result.failed`
+        contains conversion errors. The only persisted output is a summary string
+        like `"1 succeeded, 2 failed"`, so the task state itself no longer
+        reflects that the batch encountered failures.
+      why: >
+        Status polling and cancellation APIs treat the job as successful even when
+        some files failed to convert. Anything relying on the task state, rather
+        than parsing the summary text, will miss real conversion failures and may
+        proceed as if the batch fully succeeded.
+      file: "src/to_markdown/core/worker.py"
+      line: 115
+      confidence: 95
+      suggestedFix: >
+        Set the stored status from the batch result instead of hard-coding
+        `TASK_STATUS_COMPLETED`. At minimum, mark the task failed when
+        `result.failed` is non-empty and include the failed file details in the
+        stored error field; a dedicated partial-success status would be even
+        clearer if the task model can be extended.
+      codeSnippet: "status=TASK_STATUS_COMPLETED,"
+      reasoning: "Verified at worker.py:115. Status is unconditionally TASK_STATUS_COMPLETED regardless of result.failed contents. No existing findings."
+
+    - category: "code-quality"
+      severity: "medium"
+      title: "spawn_worker leaks a log file descriptor in long-lived processes"
+      description: >
+        `spawn_worker()` opens the per-task log file in the parent process and
+        passes that handle into `subprocess.Popen()`, but it never closes the
+        parent-side descriptor after the child has been launched.
+      why: >
+        The CLI exits quickly, but the MCP server keeps running and can start many
+        background conversions over time. Each call leaves an extra file
+        descriptor open in the server process, which eventually exhausts the
+        process limit and prevents new tasks or other file operations from
+        starting.
+      file: "src/to_markdown/core/worker.py"
+      line: 35
+      confidence: 93
+      suggestedFix: >
+        Close `log_fd` in the parent after `Popen()` succeeds, ideally with a
+        `try/finally` around the spawn so the descriptor is also closed on launch
+        failures. The child can keep using the inherited descriptor for stdout and
+        stderr.
+      codeSnippet: "log_fd = log_file.open(\"w\")"
+      reasoning: "Verified at worker.py:35-48. log_fd opened at line 35, passed to Popen at lines 45-46, never closed in parent scope. No existing findings."
+
+    - category: "performance"
+      severity: "critical"
+      title: "Synchronous file extraction blocks the async event loop"
+      description: >
+        The `build_content_async` function is designed for use inside a running
+        async event loop (like the FastMCP server). However, it calls the
+        synchronous `extract_file` function, which performs blocking disk I/O and
+        CPU-intensive Kreuzberg document extraction on the main thread.
+      why: >
+        Synchronous document extraction will completely block the async event
+        loop, preventing the MCP server from responding to other requests, health
+        checks, or performing concurrent I/O until the extraction finishes. For
+        large PDFs or images requiring OCR, this can take several seconds and
+        cause the server to timeout.
+      file: "src/to_markdown/core/content_builder.py"
+      line: 51
+      confidence: 92
+      suggestedFix: >
+        Use asyncio.to_thread to run the synchronous extraction in a worker
+        thread: `result = await asyncio.to_thread(extract_file, input_path, extract_images=images)`
+      codeSnippet: "result = extract_file(input_path, extract_images=images)"
+      reasoning: "Verified at content_builder.py:51. Synchronous extract_file called directly inside async function, will block the event loop. Line adjusted from raw finding (66->51) to match actual code."
+
+    - category: "performance"
+      severity: "high"
+      title: "Sequential processing in convert_batch_async limits throughput"
+      description: >
+        In convert_batch_async, files are processed sequentially using a for loop
+        with `await convert_file_async()`. Since convert_file_async involves
+        multiple network calls to the LLM API for each file, doing this
+        sequentially prevents taking advantage of parallel network I/O.
+      why: >
+        When processing a large batch of files, the total time will scale linearly
+        with the number of files. Executing the independent file conversion tasks
+        concurrently (with a concurrency limit to respect API rate limits) would
+        significantly reduce the overall batch processing time.
+      file: "src/to_markdown/core/batch.py"
+      line: 180
+      confidence: 85
+      suggestedFix: >
+        Process the files concurrently using asyncio.gather and an
+        asyncio.Semaphore to limit concurrency.
+      codeSnippet: "converted = await convert_file_async("
+      reasoning: "Verified at batch.py:174-180. Sequential for-loop with await. This is an optimization opportunity rather than a bug -- confidence lowered from 95 to 85. No existing findings."
+
+    - category: "testing"
+      severity: "high"
+      title: "Add coverage for non-recursive background batch execution"
+      description: >
+        The background batch worker path always calls `discover_files(source)`
+        with its default recursive behavior when `is_batch` is set, and the CLI
+        background command only serializes `force` and `sanitize` into the task
+        payload. I could not find any test that starts a background directory
+        conversion with `--no-recursive` and then verifies either the stored
+        command arguments or the worker's call to `discover_files(...,
+        recursive=False)`, so this branch can regress without the suite noticing.
+      why: >
+        Background conversion is the path users will take for large directory
+        jobs. If recursion handling drifts here, nested files will be converted
+        even when the foreground CLI would skip them, producing extra output and
+        making the background mode behave differently from the main command.
+      file: "src/to_markdown/core/worker.py"
+      line: 100
+      confidence: 88
+      suggestedFix: >
+        Add an integration-style test that invokes the CLI with a directory,
+        `--background`, and `--no-recursive`, then asserts the queued task payload
+        preserves the recursion choice and `run_worker()` calls
+        `discover_files(source, recursive=False)`. Keep a companion assertion for
+        the default recursive case so both behaviors are locked down.
+      codeSnippet: "files = discover_files(source)"
+      reasoning: "Verified at worker.py:100. discover_files called without recursive kwarg. Also corroborates finding 0 (same area, different issue). Confidence lowered from 98 to 88."
+
+    - category: "testing"
+      severity: "medium"
+      title: "Exercise MCP server ToolError translation paths"
+      description: >
+        The public MCP server wrappers convert handler `ValueError`s and
+        unexpected exceptions into `ToolError`, but `tests/test_mcp_server.py`
+        only checks tool registration and parameter schemas. I did not find any
+        test that actually calls `convert_file`, `convert_batch`,
+        `start_conversion`, `get_task_status`, or `cancel_task` with patched
+        handler failures to verify the server exposes the documented error
+        contract.
+      why: >
+        MCP clients depend on these wrappers to receive consistent `ToolError`
+        failures instead of raw Python exceptions. A regression in this
+        translation layer would break client-side error handling even though the
+        current server test module would still pass.
+      file: "src/to_markdown/mcp/server.py"
+      line: 62
+      confidence: 85
+      suggestedFix: >
+        Add behavioral tests for each server wrapper that patch the underlying
+        handler once to raise `ValueError` and once to raise a generic exception,
+        then assert the wrapper raises `ToolError` with the expected user-facing
+        message prefix. That gives coverage to the actual server contract instead
+        of only registration metadata.
+      reasoning: "Valid testing gap. Confidence lowered from 93 to 85 -- the claim is based on absence evidence."
+
+    - category: "testing"
+      severity: "medium"
+      title: "Cover async pipeline wrappers used by MCP writes"
+      description: >
+        The repository has good coverage for `build_content_async()` and the sync
+        pipeline helpers, but I could not find any direct test for
+        `convert_file_async()` or `convert_to_string_async()` in
+        `src/to_markdown/core/pipeline.py`. Those wrappers contain their own file
+        existence checks, overwrite protection, directory creation, and async
+        write behavior that is separate from `build_content_async()`.
+      why: >
+        The async wrappers are the code paths used by MCP and async batch
+        conversion. If one of those guards regresses, the synchronous test suite
+        can still stay green while MCP callers start overwriting files
+        unexpectedly or fail on missing parent directories.
+      file: "src/to_markdown/core/pipeline.py"
+      line: 114
+      confidence: 82
+      suggestedFix: >
+        Add focused async tests for `convert_file_async()` and
+        `convert_to_string_async()` that cover: missing input, existing output
+        without `force`, nested output directory creation, and parity with the
+        sync helpers for `sanitize`, `clean`, and `summary` flags.
+      reasoning: "Valid testing gap. Confidence lowered from 90 to 82 -- the async wrappers may be indirectly covered by integration tests."
+
+    - category: "documentation"
+      severity: "high"
+      title: "INSTALL.md example output shows wrong version 0.1.0 instead of 1.0.0"
+      description: >
+        The example terminal output in INSTALL.md line 82 shows "OK to-markdown
+        0.1.0" for the installation validation step. The actual project version is
+        1.0.0 as defined in pyproject.toml line 3 and src/to_markdown/__init__.py
+        line 3.
+      why: >
+        A user following the installation guide will see "to-markdown 1.0.0" in
+        their terminal but the documentation shows "0.1.0". This version mismatch
+        may cause the user to think their installation is broken or that they
+        installed the wrong version.
+      file: "INSTALL.md"
+      line: 82
+      confidence: 95
+      suggestedFix: |
+        Change line 82 from:
+          OK to-markdown 0.1.0
+        to:
+          OK to-markdown 1.0.0
+      codeSnippet: "OK to-markdown 0.1.0"
+      reasoning: "Verified at INSTALL.md:82 and pyproject.toml:3. Version is 1.0.0 but docs show 0.1.0."
+
+    - category: "documentation"
+      severity: "high"
+      title: "INSTALL.md claims Python 3.13 fallback works but project requires >=3.14"
+      description: >
+        INSTALL.md line 163 states "The installer will automatically try Python
+        3.13 as a fallback" as a resolution for the "Python 3.14 not available"
+        troubleshooting scenario. However, pyproject.toml line 6 declares
+        requires-python = ">=3.14". The install script (install.sh lines 79-81)
+        does attempt to install Python 3.13, but the subsequent uv sync step (line
+        116) will fail because the project's Python version constraint rejects
+        3.13.
+      why: >
+        A user on a platform where Python 3.14 is not yet available will read this
+        troubleshooting advice, believe the 3.13 fallback is a valid path, and end
+        up with a broken installation when uv sync fails. The documentation
+        presents a dead-end workaround as a working solution.
+      file: "INSTALL.md"
+      line: 163
+      confidence: 88
+      suggestedFix: >
+        Either remove the Python 3.13 fallback claim and state that Python 3.14+
+        is strictly required, or if the intent is to support 3.13, update
+        pyproject.toml to requires-python = ">=3.13".
+      codeSnippet: "The installer will automatically try Python 3.13 as a fallback."
+      reasoning: "Verified at INSTALL.md:163 and pyproject.toml:6 (requires-python = '>=3.14'). The 3.13 fallback is a dead end."
+
+    - category: "documentation"
+      severity: "medium"
+      title: "frontmatter.py docstring incorrectly says 'LLM sanitizer' for character-level sanitization"
+      description: >
+        The compose_frontmatter docstring at src/to_markdown/core/frontmatter.py
+        line 22 describes the sanitized parameter as "Whether the content was
+        cleaned by the LLM sanitizer." The actual sanitization is performed by
+        src/to_markdown/core/sanitize.py which is a character-level filter that
+        strips zero-width, control, and directional Unicode characters. No LLM is
+        involved. The caller in content_builder.py line 63 sets sanitized from
+        sanitize_result.was_modified, which comes from the character-level
+        sanitize_content() function.
+      why: >
+        A developer reading this docstring would believe the sanitized flag
+        indicates LLM processing occurred, when it actually indicates
+        character-level filtering. This could lead to incorrect assumptions about
+        when the flag is set (e.g., assuming it requires GEMINI_API_KEY) and about
+        the nature of the transformation applied to the content.
+      file: "src/to_markdown/core/frontmatter.py"
+      line: 20
+      confidence: 92
+      suggestedFix: >
+        Change the docstring from:
+          sanitized: Whether the content was cleaned by the LLM sanitizer.
+        to:
+          sanitized: Whether non-visible characters were stripped by content sanitization.
+      codeSnippet: "sanitized: Whether the content was cleaned by the LLM sanitizer."
+      reasoning: "Verified at frontmatter.py:20. The sanitized flag comes from sanitize_content() in sanitize.py, which is character-level -- no LLM involved."
+
+    - category: "documentation"
+      severity: "medium"
+      title: "CHANGELOG.md release URL uses different GitHub org than README badges"
+      description: >
+        CHANGELOG.md line 77 links to
+        https://github.com/ppatterson/to-markdown/releases/tag/v1.0.0 while
+        README.md lines 3-4 link badges to
+        https://github.com/wiseyoda/to-markdown. These reference different GitHub
+        organizations/users for the same project.
+      why: >
+        One of the two URLs is incorrect. A developer clicking the v1.0.0 release
+        link in the CHANGELOG will either get a 404 or land on the wrong
+        repository. This undermines trust in the documentation and makes it
+        unclear which GitHub URL is canonical.
+      file: "CHANGELOG.md"
+      line: 77
+      confidence: 90
+      suggestedFix: >
+        Align the CHANGELOG release URL with the README. If the canonical repo is
+        wiseyoda/to-markdown, change CHANGELOG.md line 77 to:
+        [1.0.0]: https://github.com/wiseyoda/to-markdown/releases/tag/v1.0.0
+      codeSnippet: "[1.0.0]: https://github.com/ppatterson/to-markdown/releases/tag/v1.0.0"
+      reasoning: "Verified at CHANGELOG.md:77 (ppatterson/to-markdown) vs README.md:5 (wiseyoda/to-markdown). One of the two orgs is wrong."
+
+  confirmed: []
+
+  fixed: []
+
+  merged: []
+
+  noise: []
+
+  recurring: []
+
+  summary:
+    total_raw: 12
+    genuinely_new: 12
+    confirmed: 0
+    fixed: 0
+    merged_groups: 0
+    noise_removed: 0
+    recurring: 0
