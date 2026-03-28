@@ -13,6 +13,11 @@ def main() -> None:
         format="%(levelname)s: %(message)s",
     )
 
+    # Load .env file so GEMINI_API_KEY is available for smart features
+    from to_markdown.core.cli_helpers import load_dotenv
+
+    load_dotenv()
+
     from to_markdown.mcp.server import run_server
 
     run_server()

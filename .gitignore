@@ -26,6 +26,9 @@ build/
 .coverage
 htmlcov/
 
+# Project test files
+tmp/
+
 # OS
 .DS_Store
 Thumbs.db

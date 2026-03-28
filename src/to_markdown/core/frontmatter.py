@@ -31,6 +31,8 @@ def compose_frontmatter(
     _add_if_present(data, "words", metadata.get("word_count"))
 
     data["format"] = metadata.get("format_type", source_path.suffix.lstrip("."))
+    if metadata.get("ocr_fallback"):
+        data["ocr_fallback"] = True
     if sanitized:
         data["sanitized"] = True
     data["extracted_at"] = datetime.now(tz=UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
