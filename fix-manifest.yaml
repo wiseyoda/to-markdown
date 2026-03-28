@@ -1,20 +1,25 @@
 version: 1
-generated_at: 2026-03-28T23:23:20.635Z
+generated_at: 2026-03-28T23:46:37.879Z
 findings:
-  - id: f3f03acb-6b09-47e5-9394-d5538215f6d3
+  - id: 6882d602-2c4b-4b4f-8310-35b14e301bc7
     category: documentation
     severity: medium
-    title: CHANGELOG.md release URL uses different GitHub org than README badges
+    title: frontmatter.py docstring incorrectly says 'LLM sanitizer' for
+      character-level sanitization
     description: >
-      CHANGELOG.md line 77 links to
-      https://github.com/ppatterson/to-markdown/releases/tag/v1.0.0 while
-      README.md lines 3-4 link badges to
-      https://github.com/wiseyoda/to-markdown. These reference different GitHub
-      organizations/users for the same project.
-    file: CHANGELOG.md
-    line: 77
+      The compose_frontmatter docstring at src/to_markdown/core/frontmatter.py
+      line 22 describes the sanitized parameter as "Whether the content was
+      cleaned by the LLM sanitizer." The actual sanitization is performed by
+      src/to_markdown/core/sanitize.py which is a character-level filter that
+      strips zero-width, control, and directional Unicode characters. No LLM is
+      involved. The caller in content_builder.py line 63 sets sanitized from
+      sanitize_result.was_modified, which comes from the character-level
+      sanitize_content() function.
+    file: src/to_markdown/core/frontmatter.py
+    line: 20
     suggested_fix: >
-      Align the CHANGELOG release URL with the README. If the canonical repo is
-      wiseyoda/to-markdown, change CHANGELOG.md line 77 to: [1.0.0]:
-      https://github.com/wiseyoda/to-markdown/releases/tag/v1.0.0
+      Change the docstring from:
+        sanitized: Whether the content was cleaned by the LLM sanitizer.
+      to:
+        sanitized: Whether non-visible characters were stripped by content sanitization.
     code_snippet: null
