@@ -17,7 +17,7 @@ def compose_frontmatter(
     Args:
         metadata: Metadata dict from Kreuzberg extraction.
         source_path: Path to the original source file.
-        sanitized: Whether the content was cleaned by the LLM sanitizer.
+        sanitized: Whether non-visible characters were stripped by content sanitization.
 
     Returns:
         YAML frontmatter string with leading and trailing ``---`` delimiters.
