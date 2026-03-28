@@ -1,0 +1,20 @@
+version: 1
+generated_at: 2026-03-28T23:23:20.635Z
+findings:
+  - id: f3f03acb-6b09-47e5-9394-d5538215f6d3
+    category: documentation
+    severity: medium
+    title: CHANGELOG.md release URL uses different GitHub org than README badges
+    description: >
+      CHANGELOG.md line 77 links to
+      https://github.com/ppatterson/to-markdown/releases/tag/v1.0.0 while
+      README.md lines 3-4 link badges to
+      https://github.com/wiseyoda/to-markdown. These reference different GitHub
+      organizations/users for the same project.
+    file: CHANGELOG.md
+    line: 77
+    suggested_fix: >
+      Align the CHANGELOG release URL with the README. If the canonical repo is
+      wiseyoda/to-markdown, change CHANGELOG.md line 77 to: [1.0.0]:
+      https://github.com/wiseyoda/to-markdown/releases/tag/v1.0.0
+    code_snippet: null

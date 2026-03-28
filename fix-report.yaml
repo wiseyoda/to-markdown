@@ -1,0 +1,6 @@
+findings:
+  - finding_id: "f3f03acb-6b09-47e5-9394-d5538215f6d3"
+    status: "fixed"
+    reason: "Updated release URL to use the canonical repo wiseyoda/to-markdown, as seen in README.md badges."
+    files_changed:
+      - "CHANGELOG.md"

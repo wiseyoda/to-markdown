@@ -74,4 +74,4 @@ with YAML frontmatter, powered by Kreuzberg extraction and optional Gemini LLM f
 - Added GitHub Actions CI with coverage enforcement (80% minimum)
 - Tagged v1.0.0 for first stable release
 
-[1.0.0]: https://github.com/ppatterson/to-markdown/releases/tag/v1.0.0
+[1.0.0]: https://github.com/wiseyoda/to-markdown/releases/tag/v1.0.0
