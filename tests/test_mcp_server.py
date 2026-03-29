@@ -1,7 +1,8 @@
 """Tests for MCP server setup and tool registration (mcp/server.py)."""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 
@@ -189,107 +190,134 @@ class TestToolErrorTranslation:
     async def test_convert_file_value_error(self):
         from to_markdown.mcp.server import convert_file
 
-        with patch(
-            "to_markdown.mcp.server.handle_convert_file", side_effect=ValueError("test value error")
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_convert_file",
+                side_effect=ValueError("test value error"),
+            ),
+            pytest.raises(ToolError, match="test value error"),
         ):
-            with pytest.raises(ToolError, match="test value error"):
-                await convert_file("path/to/file")
+            await convert_file("path/to/file")
 
     async def test_convert_file_generic_error(self):
         from to_markdown.mcp.server import convert_file
 
-        with patch(
-            "to_markdown.mcp.server.handle_convert_file", side_effect=Exception("test generic error")
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_convert_file",
+                side_effect=Exception("test generic error"),
+            ),
+            pytest.raises(ToolError, match="Conversion failed: test generic error"),
         ):
-            with pytest.raises(ToolError, match="Conversion failed: test generic error"):
-                await convert_file("path/to/file")
+            await convert_file("path/to/file")
 
     async def test_convert_batch_value_error(self):
         from to_markdown.mcp.server import convert_batch
 
-        with patch(
-            "to_markdown.mcp.server.handle_convert_batch",
-            side_effect=ValueError("test batch value error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_convert_batch",
+                side_effect=ValueError("test batch value error"),
+            ),
+            pytest.raises(ToolError, match="test batch value error"),
         ):
-            with pytest.raises(ToolError, match="test batch value error"):
-                await convert_batch("path/to/dir")
+            await convert_batch("path/to/dir")
 
     async def test_convert_batch_generic_error(self):
         from to_markdown.mcp.server import convert_batch
 
-        with patch(
-            "to_markdown.mcp.server.handle_convert_batch",
-            side_effect=Exception("test batch generic error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_convert_batch",
+                side_effect=Exception("test batch generic error"),
+            ),
+            pytest.raises(ToolError, match="Batch conversion failed: test batch generic error"),
         ):
-            with pytest.raises(ToolError, match="Batch conversion failed: test batch generic error"):
-                await convert_batch("path/to/dir")
+            await convert_batch("path/to/dir")
 
     def test_start_conversion_value_error(self):
         from to_markdown.mcp.server import start_conversion
 
-        with patch(
-            "to_markdown.mcp.server.handle_start_conversion",
-            side_effect=ValueError("test start value error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_start_conversion",
+                side_effect=ValueError("test start value error"),
+            ),
+            pytest.raises(ToolError, match="test start value error"),
         ):
-            with pytest.raises(ToolError, match="test start value error"):
-                start_conversion("path/to/file")
+            start_conversion("path/to/file")
 
     def test_start_conversion_generic_error(self):
         from to_markdown.mcp.server import start_conversion
 
-        with patch(
-            "to_markdown.mcp.server.handle_start_conversion",
-            side_effect=Exception("test start generic error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_start_conversion",
+                side_effect=Exception("test start generic error"),
+            ),
+            pytest.raises(ToolError, match="Failed to start conversion: test start generic error"),
         ):
-            with pytest.raises(ToolError, match="Failed to start conversion: test start generic error"):
-                start_conversion("path/to/file")
+            start_conversion("path/to/file")
 
     def test_get_task_status_value_error(self):
         from to_markdown.mcp.server import get_task_status
 
-        with patch(
-            "to_markdown.mcp.server.handle_get_task_status",
-            side_effect=ValueError("test get status value error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_get_task_status",
+                side_effect=ValueError("test get status value error"),
+            ),
+            pytest.raises(ToolError, match="test get status value error"),
         ):
-            with pytest.raises(ToolError, match="test get status value error"):
-                get_task_status("task-123")
+            get_task_status("task-123")
 
     def test_get_task_status_generic_error(self):
         from to_markdown.mcp.server import get_task_status
 
-        with patch(
-            "to_markdown.mcp.server.handle_get_task_status",
-            side_effect=Exception("test get status generic error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_get_task_status",
+                side_effect=Exception("test get status generic error"),
+            ),
+            pytest.raises(
+                ToolError,
+                match="Failed to get task status: test get status generic error",
+            ),
         ):
-            with pytest.raises(ToolError, match="Failed to get task status: test get status generic error"):
-                get_task_status("task-123")
+            get_task_status("task-123")
 
     def test_cancel_task_value_error(self):
         from to_markdown.mcp.server import cancel_task
 
-        with patch(
-            "to_markdown.mcp.server.handle_cancel_task",
-            side_effect=ValueError("test cancel value error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_cancel_task",
+                side_effect=ValueError("test cancel value error"),
+            ),
+            pytest.raises(ToolError, match="test cancel value error"),
         ):
-            with pytest.raises(ToolError, match="test cancel value error"):
-                cancel_task("task-123")
+            cancel_task("task-123")
 
     def test_cancel_task_generic_error(self):
         from to_markdown.mcp.server import cancel_task
 
-        with patch(
-            "to_markdown.mcp.server.handle_cancel_task",
-            side_effect=Exception("test cancel generic error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_cancel_task",
+                side_effect=Exception("test cancel generic error"),
+            ),
+            pytest.raises(ToolError, match="Failed to cancel task: test cancel generic error"),
         ):
-            with pytest.raises(ToolError, match="Failed to cancel task: test cancel generic error"):
-                cancel_task("task-123")
+            cancel_task("task-123")
 
     def test_list_tasks_generic_error(self):
         from to_markdown.mcp.server import list_tasks
 
-        with patch(
-            "to_markdown.mcp.server.handle_list_tasks",
-            side_effect=Exception("test list tasks generic error"),
+        with (
+            patch(
+                "to_markdown.mcp.server.handle_list_tasks",
+                side_effect=Exception("test list tasks generic error"),
+            ),
+            pytest.raises(ToolError, match="Failed to list tasks: test list tasks generic error"),
         ):
-            with pytest.raises(ToolError, match="Failed to list tasks: test list tasks generic error"):
-                list_tasks()
+            list_tasks()
