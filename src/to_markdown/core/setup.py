@@ -191,8 +191,8 @@ def _print_next_steps() -> None:
     console.print(
         Panel(
             "Try these commands:\n\n"
-            "  [cyan]to-markdown file.pdf[/cyan]              Convert a file\n"
-            "  [cyan]to-markdown file.pdf --clean[/cyan]      Fix extraction artifacts\n"
+            "  [cyan]to-markdown file.pdf[/cyan]              Convert with auto-clean\n"
+            "  [cyan]to-markdown file.pdf --no-clean[/cyan]   Skip LLM cleaning\n"
             "  [cyan]to-markdown file.pdf --summary[/cyan]    Add AI summary\n"
             "  [cyan]to-markdown file.pdf --images[/cyan]     Describe images\n"
             "  [cyan]to-markdown docs/[/cyan]                 Convert a directory",

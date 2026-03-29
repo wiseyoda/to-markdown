@@ -228,15 +228,20 @@ class TaskStore:
     def check_orphans(self) -> int:
         """Detect running tasks with stale PIDs and mark as failed.
 
+        Also detects pending tasks without a PID that have been stuck for
+        more than 5 minutes, as they likely suffered a spawn failure.
+
         Returns the number of orphaned tasks found.
         """
+        now = _now_iso()
+        now_dt = datetime.fromisoformat(now)
+        orphaned = 0
+
+        # 1. Check RUNNING tasks with dead PIDs
         cursor = self._conn.execute(
             "SELECT id, pid FROM tasks WHERE status = ?",
             (TaskStatus.RUNNING.value,),
         )
-        orphaned = 0
-        now = _now_iso()
-
         for task_id, pid in cursor.fetchall():
             if pid is None or not _pid_is_alive(pid):
                 self.update(
@@ -246,6 +251,26 @@ class TaskStore:
                     completed_at=now,
                 )
                 orphaned += 1
+
+        # 2. Check PENDING tasks without PIDs that are too old
+        cursor = self._conn.execute(
+            "SELECT id, created_at FROM tasks WHERE status = ? AND pid IS NULL",
+            (TaskStatus.PENDING.value,),
+        )
+        for task_id, created_at in cursor.fetchall():
+            try:
+                created_dt = datetime.fromisoformat(created_at)
+                # Mark as failed if pending without PID for > 5 minutes
+                if (now_dt - created_dt).total_seconds() > 300:
+                    self.update(
+                        task_id,
+                        status=TaskStatus.FAILED.value,
+                        error="Task stayed pending too long (worker spawn failure)",
+                        completed_at=now,
+                    )
+                    orphaned += 1
+            except ValueError:
+                continue
 
         return orphaned
 

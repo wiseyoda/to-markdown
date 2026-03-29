@@ -11,8 +11,8 @@ import pytest
 from to_markdown.core.constants import (
     TASK_DB_FILENAME,
     TASK_LOG_DIR,
-    TASK_STATUS_COMPLETED,
 )
+from to_markdown.core.tasks import TaskStatus
 
 
 @pytest.fixture()
@@ -264,6 +264,14 @@ class TestRunWorker:
         fetched = store.get(task.id)
         assert fetched.status == TaskStatus.CANCELLED
 
+    def test_nonexistent_task_returns_gracefully(self, store, store_dir: Path):
+        """Test that run_worker returns early for invalid task ID."""
+        from to_markdown.core.worker import run_worker
+
+        # Should not raise exception
+        run_worker("nonexistent-id", store)
+        assert store.get("nonexistent-id") is None
+
 
 class TestRunWorkerBatch:
     """Tests for run_worker() with batch/directory input."""
@@ -302,7 +310,47 @@ class TestRunWorkerBatch:
 
         mock_batch.assert_called_once()
         fetched = store.get(task.id)
-        assert fetched.status.value == TASK_STATUS_COMPLETED
+        assert fetched.status.value == TaskStatus.COMPLETED.value
+
+    @patch("to_markdown.core.batch.convert_batch")
+    @patch("to_markdown.core.batch.discover_files")
+    def test_batch_failure_marks_task_failed(
+        self, mock_discover, mock_batch, store, store_dir: Path
+    ):
+        """Test that batch failure (some files fail) marks task as FAILED."""
+        from to_markdown.core.batch import BatchResult
+        from to_markdown.core.tasks import TaskStatus
+        from to_markdown.core.worker import run_worker
+
+        mock_discover.return_value = [Path("a.pdf")]
+        # BatchResult.failed is list[tuple[Path, str]]
+        mock_batch.return_value = BatchResult(
+            succeeded=[],
+            failed=[(Path("a.pdf"), "extraction failed")],
+            skipped=[],
+        )
+
+        task = store.create(
+            "dir",
+            command_args=json.dumps(
+                {
+                    "input_path": "dir",
+                    "output_path": None,
+                    "force": False,
+                    "clean": False,
+                    "summary": False,
+                    "images": False,
+                    "is_batch": True,
+                }
+            ),
+        )
+
+        run_worker(task.id, store)
+
+        fetched = store.get(task.id)
+        assert fetched.status == TaskStatus.FAILED
+        assert "0 succeeded, 1 failed" in fetched.output_path
+        assert "a.pdf: extraction failed" in fetched.error
 
 
 # ---- T021: no_sanitize in background processing ----
