@@ -69,7 +69,7 @@ The install script automatically:
 [1/7] Checking uv package manager
   OK uv 0.10.6
 
-[2/7] Checking Python 3.13+
+[2/7] Checking Python 3.14+
   OK Python 3.14.3 found
 
 [3/7] Checking Tesseract OCR (optional)

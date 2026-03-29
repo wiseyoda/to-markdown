@@ -10,13 +10,9 @@ from pathlib import Path
 
 from to_markdown.core.constants import (
     EXIT_ERROR,
-    TASK_STATUS_CANCELLED,
-    TASK_STATUS_COMPLETED,
-    TASK_STATUS_FAILED,
-    TASK_STATUS_RUNNING,
     WORKER_FLAG,
 )
-from to_markdown.core.tasks import TaskStore, _now_iso
+from to_markdown.core.tasks import TaskStatus, TaskStore, _now_iso
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +71,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
     def _handle_sigterm(_signum: int, _frame: object) -> None:
         store.update(
             task_id,
-            status=TASK_STATUS_CANCELLED,
+            status=TaskStatus.CANCELLED.value,
             completed_at=_now_iso(),
         )
         raise SystemExit(EXIT_ERROR)
@@ -85,7 +81,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
     # Mark as running
     store.update(
         task_id,
-        status=TASK_STATUS_RUNNING,
+        status=TaskStatus.RUNNING.value,
         started_at=_now_iso(),
     )
 
@@ -124,10 +120,10 @@ def run_worker(task_id: str, store: TaskStore) -> None:
                 quiet=True,
             )
             output_str = f"{len(result.succeeded)} succeeded, {len(result.failed)} failed"
-            status = TASK_STATUS_COMPLETED
+            status = TaskStatus.COMPLETED.value
             error = None
             if result.failed:
-                status = TASK_STATUS_FAILED
+                status = TaskStatus.FAILED.value
                 error = "\n".join([f"{path.name}: {err}" for path, err in result.failed])
 
             store.update(
@@ -151,7 +147,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
             )
             store.update(
                 task_id,
-                status=TASK_STATUS_COMPLETED,
+                status=TaskStatus.COMPLETED.value,
                 output_path=str(result_path),
                 completed_at=_now_iso(),
             )
@@ -161,7 +157,7 @@ def run_worker(task_id: str, store: TaskStore) -> None:
     except Exception as exc:
         store.update(
             task_id,
-            status=TASK_STATUS_FAILED,
+            status=TaskStatus.FAILED.value,
             error=str(exc),
             completed_at=_now_iso(),
         )
