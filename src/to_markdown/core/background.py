@@ -118,13 +118,15 @@ def handle_background(
     summary: bool,
     images_flag: bool,
     no_sanitize: bool = False,
+    recursive: bool = True,
     store,
 ) -> None:
     """Handle --background flag."""
     run_maintenance(store)
 
     resolved = Path(input_path)
-    is_batch = resolved.is_dir() or is_glob_pattern(input_path)
+    is_glob = is_glob_pattern(input_path)
+    is_batch = resolved.is_dir() or is_glob
 
     command_args = json.dumps(
         {
@@ -136,6 +138,8 @@ def handle_background(
             "images": images_flag,
             "sanitize": not no_sanitize,
             "is_batch": is_batch,
+            "is_glob": is_glob,
+            "recursive": recursive,
         }
     )
 
