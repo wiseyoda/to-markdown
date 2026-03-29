@@ -1,0 +1,200 @@
+findings:
+  - category: "style"
+    severity: "medium"
+    title: "Overloaded validate_api_key name in core/ with incompatible signatures"
+    description: >
+      Two functions named validate_api_key exist in the same core/ package with
+      different signatures and semantics. cli_helpers.py line 45 defines
+      validate_api_key(summary: bool, images: bool) -> None which checks if the
+      GEMINI_API_KEY environment variable is set and raises typer.Exit on failure.
+      setup.py line 87 defines validate_api_key(api_key: str) -> bool which makes
+      a live API call to Gemini and returns True/False. Same name, different arity,
+      different return type, different behavior.
+    why: >
+      A developer searching for validate_api_key finds two incompatible functions
+      in the same package. Without reading both implementations, they cannot know
+      which to call — one validates presence of an env var, the other validates a
+      key string against the live API. This ambiguity forces unnecessary context
+      switching and increases the risk of calling the wrong one.
+    file: "src/to_markdown/core/cli_helpers.py"
+    line: 45
+    confidence: 90
+    suggestedFix: >
+      Rename one or both to distinguish their purpose:
+
+      # cli_helpers.py — checks env var presence
+      def require_api_key(summary: bool, images: bool) -> None:
+
+      # setup.py — validates key against live API
+      def validate_api_key(api_key: str) -> bool:  # keep as-is, this name fits
+
+      This makes the CLI helper's intent clear (it requires/enforces, not validates)
+      while the setup function keeps validate since it truly validates.
+    codeSnippet: >
+      # cli_helpers.py:45
+      def validate_api_key(summary: bool, images: bool) -> None:
+          if not (summary or images):
+              return
+          if not os.environ.get(GEMINI_API_KEY_ENV):
+              logger.error(...)
+              raise typer.Exit(EXIT_ERROR)
+
+      # setup.py:87
+      def validate_api_key(api_key: str) -> bool:
+          if not _check_llm_available():
+              return True
+          try:
+              _make_test_call(api_key)
+              return True
+          except Exception:
+              return False
+
+  - category: "style"
+    severity: "low"
+    title: "Keyword argument order differs between sync/async pair in content_builder.py"
+    description: >
+      build_content() at line 13 orders its keyword-only parameters as
+      (clean, summary, images, sanitize) while build_content_async() at line 37
+      orders them as (sanitize, clean, summary, images). Every other sync/async
+      pair in the codebase (convert_file/convert_file_async,
+      convert_to_string/convert_to_string_async in pipeline.py) uses identical
+      parameter ordering between the two variants.
+    why: >
+      A developer comparing the sync and async signatures side-by-side would
+      expect identical parameter ordering, as established by every other
+      sync/async pair in pipeline.py. The reordered sanitize parameter breaks
+      this expectation and forces the reader to verify that both functions
+      accept the same arguments.
+    file: "src/to_markdown/core/content_builder.py"
+    line: 39
+    confidence: 92
+    suggestedFix: >
+      Reorder build_content_async parameters to match build_content:
+
+      async def build_content_async(
+          input_path: Path,
+          *,
+          clean: bool = False,
+          summary: bool = False,
+          images: bool = False,
+          sanitize: bool = True,
+      ) -> str:
+    codeSnippet: >
+      # build_content (line 13): clean, summary, images, sanitize
+      def build_content(
+          input_path: Path,
+          *,
+          clean: bool = False,
+          summary: bool = False,
+          images: bool = False,
+          sanitize: bool = True,
+      ) -> str:
+
+      # build_content_async (line 37): sanitize, clean, summary, images
+      async def build_content_async(
+          input_path: Path,
+          *,
+          sanitize: bool = True,
+          clean: bool = False,
+          summary: bool = False,
+          images: bool = False,
+      ) -> str:
+
+  - category: "style"
+    severity: "low"
+    title: "Task status updates mix string constants and enum .value access"
+    description: >
+      worker.py references task statuses via string constants imported from
+      constants.py (e.g. TASK_STATUS_RUNNING at line 88, TASK_STATUS_COMPLETED
+      at line 135, TASK_STATUS_CANCELLED at line 79). Meanwhile background.py
+      line 109 and background_tools.py line 165 reference the same values via
+      the TaskStatus enum (TaskStatus.CANCELLED.value). Both resolve to the same
+      strings, but the access pattern is inconsistent across the three files
+      that update task status.
+    why: >
+      A developer adding new status transitions must choose between two patterns
+      with no clear guidance on which is preferred. The mixed usage also makes
+      it harder to grep for all places where a specific status is set, since
+      the search must account for both TASK_STATUS_CANCELLED and
+      TaskStatus.CANCELLED.value.
+    file: "src/to_markdown/core/worker.py"
+    line: 88
+    confidence: 88
+    suggestedFix: >
+      Pick one pattern and use it consistently. The enum approach is more
+      type-safe and already used by tasks.py internally:
+
+      # worker.py — change from string constants to enum
+      from to_markdown.core.tasks import TaskStatus
+
+      store.update(task_id, status=TaskStatus.RUNNING.value, ...)
+      store.update(task_id, status=TaskStatus.COMPLETED.value, ...)
+      store.update(task_id, status=TaskStatus.CANCELLED.value, ...)
+
+      Then the TASK_STATUS_* string constants in constants.py can be kept
+      solely for the enum definition.
+    codeSnippet: >
+      # worker.py:88 — uses string constant
+      store.update(
+          task_id,
+          status=TASK_STATUS_RUNNING,
+          started_at=_now_iso(),
+      )
+
+      # background.py:107-111 — uses enum .value
+      store.update(
+          task.id,
+          status=TaskStatus.CANCELLED.value,
+          completed_at=_now_iso(),
+      )
+
+  - category: "style"
+    severity: "low"
+    title: "Boolean predicate naming inconsistency: _is_llm_available vs _check_llm_available"
+    description: >
+      The codebase convention for boolean-returning functions uses the is_ prefix:
+      is_glob_pattern (display.py:14), is_done property (tasks.py:73),
+      _pid_is_alive (tasks.py:98). However, the LLM availability check uses
+      _check_llm_available in three modules (mcp/tools.py:182,
+      mcp/background_tools.py:22, setup.py:64) while cli.py:44 uses
+      _is_llm_available for a similar check. The check_ prefix is not used for
+      any other boolean predicate in the codebase.
+    why: >
+      A developer encountering both _is_llm_available and _check_llm_available
+      would reasonably assume they have different behavior, when in fact they
+      serve the same conceptual purpose (testing whether the LLM SDK is usable).
+      The check_ prefix also breaks from the codebase's established is_ pattern
+      for boolean predicates.
+    file: "src/to_markdown/core/setup.py"
+    line: 64
+    confidence: 80
+    suggestedFix: >
+      Standardize on is_ prefix to match the codebase convention:
+
+      # In setup.py, mcp/tools.py, mcp/background_tools.py:
+      def _is_llm_available() -> bool:
+          try:
+              import google.genai  # noqa: F401
+              return True
+          except ImportError:
+              return False
+
+      Note: cli.py's version also checks os.environ.get(GEMINI_API_KEY_ENV),
+      so it has slightly different semantics — the name distinction may be
+      partially intentional, but the convention should still be is_ for both.
+    codeSnippet: >
+      # cli.py:44 — uses is_ prefix
+      def _is_llm_available() -> bool:
+          try:
+              import google.genai
+          except ImportError:
+              return False
+          return bool(os.environ.get(GEMINI_API_KEY_ENV))
+
+      # setup.py:64 — uses check_ prefix
+      def _check_llm_available() -> bool:
+          try:
+              import google.genai
+              return True
+          except ImportError:
+              return False
