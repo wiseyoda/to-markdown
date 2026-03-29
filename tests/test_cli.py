@@ -3,7 +3,7 @@
 import json
 import re
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from typer.testing import CliRunner
 
@@ -141,7 +141,11 @@ class TestSmartFlags:
     def test_clean_flag_accepted(self, sample_text_file: Path):
         with (
             patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
-            patch("to_markdown.smart.clean.clean_content", return_value="cleaned"),
+            patch(
+                "to_markdown.smart.clean.clean_content_async",
+                new_callable=AsyncMock,
+                return_value="cleaned",
+            ),
         ):
             result = runner.invoke(app, [str(sample_text_file), "--clean"])
             assert result.exit_code == EXIT_SUCCESS
@@ -149,7 +153,11 @@ class TestSmartFlags:
     def test_summary_flag_accepted(self, sample_text_file: Path):
         with (
             patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
-            patch("to_markdown.smart.summary.summarize_content", return_value=None),
+            patch(
+                "to_markdown.smart.summary.summarize_content_async",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             result = runner.invoke(app, [str(sample_text_file), "--summary"])
             assert result.exit_code == EXIT_SUCCESS
@@ -162,7 +170,11 @@ class TestSmartFlags:
     def test_short_flags_accepted(self, sample_text_file: Path):
         with (
             patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
-            patch("to_markdown.smart.clean.clean_content", return_value="cleaned"),
+            patch(
+                "to_markdown.smart.clean.clean_content_async",
+                new_callable=AsyncMock,
+                return_value="cleaned",
+            ),
         ):
             result = runner.invoke(app, [str(sample_text_file), "-c"])
             assert result.exit_code == EXIT_SUCCESS

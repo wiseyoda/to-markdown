@@ -32,7 +32,7 @@ def spawn_worker(task_id: str, store: TaskStore) -> int:
         PID of the spawned worker process.
     """
     log_file = store.log_dir / f"{task_id}.log"
-    log_fd = log_file.open("w")
+    log_fd = log_file.open("w", encoding="utf-8")
 
     try:
         cmd = [sys.executable, "-m", "to_markdown.cli", WORKER_FLAG, task_id]

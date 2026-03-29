@@ -6,6 +6,7 @@ import logging
 import os
 import signal
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
@@ -22,23 +23,26 @@ from to_markdown.core.constants import (
 )
 from to_markdown.core.display import is_glob_pattern
 
+if TYPE_CHECKING:
+    from to_markdown.core.tasks import TaskStore
+
 logger = logging.getLogger(APP_NAME)
 
 
-def get_store():
+def get_store() -> "TaskStore":
     """Get the default TaskStore (lazy import)."""
     from to_markdown.core.tasks import get_default_store
 
     return get_default_store()
 
 
-def run_maintenance(store) -> None:
+def run_maintenance(store: "TaskStore") -> None:
     """Run orphan check and cleanup on the task store."""
     store.check_orphans()
     store.cleanup(max_age_hours=TASK_RETENTION_HOURS)
 
 
-def handle_status(status_id: str, store) -> None:
+def handle_status(status_id: str, store: "TaskStore") -> None:
     """Handle --status flag."""
     run_maintenance(store)
 
@@ -81,7 +85,7 @@ def handle_status(status_id: str, store) -> None:
     raise typer.Exit(EXIT_SUCCESS)
 
 
-def handle_cancel(cancel_id: str, store) -> None:
+def handle_cancel(cancel_id: str, store: "TaskStore") -> None:
     """Handle --cancel flag."""
     run_maintenance(store)
 
@@ -119,9 +123,11 @@ def handle_background(
     images_flag: bool,
     no_sanitize: bool = False,
     recursive: bool = True,
-    store,
+    store: "TaskStore" | None = None,
 ) -> None:
     """Handle --background flag."""
+    if store is None:
+        store = get_store()
     run_maintenance(store)
 
     resolved = Path(input_path)
@@ -152,7 +158,7 @@ def handle_background(
     raise typer.Exit(EXIT_BACKGROUND)
 
 
-def handle_worker(task_id: str, store) -> None:
+def handle_worker(task_id: str, store: "TaskStore") -> None:
     """Handle --_worker flag (internal, hidden)."""
     from to_markdown.core.worker import run_worker
 

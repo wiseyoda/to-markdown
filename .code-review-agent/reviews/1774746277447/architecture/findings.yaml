@@ -1,0 +1,103 @@
+findings:
+  - category: "architecture"
+    severity: "medium"
+    title: "Duplicated LLM availability and validation logic across 4 files"
+    description: >
+      The function _check_llm_available() is defined identically in three files:
+      mcp/tools.py (line 182), mcp/background_tools.py (line 22), and core/setup.py
+      (line 64). A fourth variant _is_llm_available() in cli.py (line 44) adds an
+      env var check on top. Additionally, _validate_llm_flags() is defined
+      identically in both mcp/tools.py (line 192) and mcp/background_tools.py
+      (line 32). The MCP-layer duplication is especially notable because tools.py
+      already imports from background_tools.py (line 16) for background handlers,
+      yet re-defines both functions locally instead of importing them.
+    why: >
+      If the LLM availability check logic changes (e.g., supporting a second LLM
+      provider, changing the import check, or adding a new validation condition),
+      4 files must be updated in sync. The within-package duplication in mcp/ is
+      the most likely to cause drift since the functions are byte-for-byte identical
+      and one module already imports from the other.
+    file: "src/to_markdown/mcp/tools.py"
+    line: 182
+    confidence: 95
+    suggestedFix: >
+      In the mcp package, define _check_llm_available and _validate_llm_flags in
+      one file (background_tools.py already has them) and import in the other:
+
+        # mcp/tools.py
+        from to_markdown.mcp.background_tools import (
+            _check_llm_available,
+            _validate_llm_flags,
+            ...
+        )
+
+      For the cross-layer duplication (cli.py, core/setup.py), consider moving a
+      shared llm_available() helper into core/ (e.g., core/cli_helpers.py or a
+      small core/llm_check.py), since all 4 sites perform the same try-import
+      pattern.
+    codeSnippet: |
+      # mcp/tools.py:182-189 (identical copy exists in mcp/background_tools.py:22-29)
+      def _check_llm_available() -> bool:
+          """Check if google-genai SDK is importable."""
+          try:
+              import google.genai  # noqa: F401
+              return True
+          except ImportError:
+              return False
+
+      # mcp/tools.py:192-209 (identical copy in mcp/background_tools.py:32-49)
+      def _validate_llm_flags(*, summary: bool, images: bool) -> None:
+          """Validate LLM flags are usable."""
+          if not (summary or images):
+              return
+          if not _check_llm_available():
+              msg = (
+                  "Smart features (summary, images) require the LLM extras. "
+                  "Install with: uv sync --extra llm"
+              )
+              raise ValueError(msg)
+
+  - category: "architecture"
+    severity: "low"
+    title: "Private function _now_iso imported across 3 module boundaries"
+    description: >
+      The function _now_iso() in core/tasks.py (line 93) is prefixed with an
+      underscore, signaling it as a private implementation detail. However, it is
+      imported by three other modules across package boundaries:
+      core/worker.py (line 19, module-level import),
+      core/background.py (line 101, lazy import inside handle_cancel),
+      and mcp/background_tools.py (line 163, lazy import inside handle_cancel_task).
+      All three callers use it to generate timestamps when updating task status.
+    why: >
+      Consumers depend on a private API that the tasks module could rename or
+      refactor without warning. Any change to _now_iso (signature, location, or
+      removal) requires updating 3 other files. While the function is trivial today,
+      the underscore prefix creates a false signal that it can be freely changed
+      without cross-module impact.
+    file: "src/to_markdown/core/tasks.py"
+    line: 93
+    confidence: 95
+    suggestedFix: >
+      Rename _now_iso to now_iso (drop the underscore) to make it part of the
+      public API, reflecting its actual usage as a cross-module utility.
+      Alternatively, add a timestamp method to TaskStore so callers don't need
+      to import a standalone function:
+
+        # core/tasks.py
+        def now_iso() -> str:
+            """Current UTC time as ISO 8601 string."""
+            return datetime.now(UTC).isoformat()
+    codeSnippet: |
+      # core/tasks.py:93-95
+      def _now_iso() -> str:
+          """Current UTC time as ISO 8601 string."""
+          return datetime.now(UTC).isoformat()
+
+      # core/worker.py:19 (module-level)
+      from to_markdown.core.tasks import TaskStore, _now_iso
+
+      # core/background.py:101 (inside handle_cancel)
+      from to_markdown.core.tasks import TaskStatus, _now_iso
+
+      # mcp/background_tools.py:163 (inside handle_cancel_task)
+      from to_markdown.core.tasks import TaskStatus, _now_iso

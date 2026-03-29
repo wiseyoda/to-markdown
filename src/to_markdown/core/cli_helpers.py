@@ -2,10 +2,14 @@
 
 import logging
 import os
+from typing import TYPE_CHECKING
 
 import typer
 
 from to_markdown.core.constants import APP_NAME, EXIT_ERROR, GEMINI_API_KEY_ENV
+
+if TYPE_CHECKING:
+    from to_markdown.core.tasks import TaskStore
 
 logger = logging.getLogger(APP_NAME)
 
@@ -59,7 +63,7 @@ def validate_api_key(summary: bool, images: bool) -> None:
         raise typer.Exit(EXIT_ERROR)
 
 
-def get_store():
+def get_store() -> "TaskStore":
     """Get the default TaskStore (lazy import)."""
     from to_markdown.core.background import get_store
 

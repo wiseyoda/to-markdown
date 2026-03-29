@@ -55,7 +55,7 @@ cd to-markdown
 The install script automatically:
 
 1. **Installs uv** (Python package manager) if not already installed
-2. **Installs Python 3.14+** via uv if not already available
+2. **Installs Python 3.13+** via uv if not already available (prefers 3.14 when available)
 3. **Offers to install Tesseract** for OCR support (optional)
 4. **Installs all project dependencies** (`uv sync --all-extras`)
 5. **Validates the installation** by running `to-markdown --version`
@@ -69,7 +69,7 @@ The install script automatically:
 [1/7] Checking uv package manager
   OK uv 0.10.6
 
-[2/7] Checking Python 3.14+
+[2/7] Checking Python 3.13+
   OK Python 3.14.3 found
 
 [3/7] Checking Tesseract OCR (optional)
@@ -156,7 +156,7 @@ source ~/.bashrc   # macOS/Linux (bash)
 
 **Fix**: Close and reopen your terminal, then run `./install.sh` again.
 
-### "Python 3.14 not available"
+### "Python 3.14 not available" (fallback to 3.13)
 
 **Cause**: Python 3.14 hasn't been released for your platform yet.
 

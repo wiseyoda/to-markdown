@@ -267,7 +267,7 @@ def main(
         logger.error("%s", exc)
         raise typer.Exit(EXIT_ERROR) from exc
     except Exception as exc:
-        logger.error("Unexpected error: %s", exc)
+        logger.exception("Unexpected error: %s", exc)
         raise typer.Exit(EXIT_ERROR) from exc
 
     if not quiet:
