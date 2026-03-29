@@ -1,6 +1,6 @@
 # to-markdown
 
-CLI file-to-Markdown converter optimized for LLM consumption. Python 3.14+, uv, Typer, ruff, pytest.
+CLI file-to-Markdown converter optimized for LLM consumption. Python 3.13+, uv, Typer, ruff, pytest.
 
 ## Rules
 

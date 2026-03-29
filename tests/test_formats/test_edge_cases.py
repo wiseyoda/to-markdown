@@ -34,7 +34,7 @@ class TestEmptyFiles:
             result = extract_file(empty)
             # If it doesn't raise, content should be empty or minimal
             assert isinstance(result.content, str)
-        except ExtractionError, UnsupportedFormatError:
+        except (ExtractionError, UnsupportedFormatError):
             pass  # Also acceptable
 
 
@@ -66,7 +66,7 @@ class TestWrongExtension:
             result = extract_file(wrong)
             # If extraction succeeds, content should be present
             assert isinstance(result.content, str)
-        except ExtractionError, UnsupportedFormatError:
+        except (ExtractionError, UnsupportedFormatError):
             pass  # Also acceptable
 
 

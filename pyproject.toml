@@ -3,7 +3,7 @@ name = "to-markdown"
 version = "1.0.0"
 description = "CLI file-to-Markdown converter optimized for LLM consumption"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 license = "MIT"
 dependencies = [
   "kreuzberg>=4.3.8",
@@ -46,7 +46,7 @@ build-backend = "hatchling.build"
 packages = ["src/to_markdown"]
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py313"
 line-length = 100
 src = ["src", "tests"]
 
