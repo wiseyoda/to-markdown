@@ -667,19 +667,25 @@ class TestAsyncPipelineWrappers:
         with pytest.raises(FileNotFoundError):
             await convert_file_async(missing)
 
-    async def test_convert_file_async_overwrite_protection(self, sample_text_file: Path, tmp_path: Path):
+    async def test_convert_file_async_overwrite_protection(
+        self, sample_text_file: Path, tmp_path: Path,
+    ):
         output = tmp_path / "exists.md"
         output.write_text("already here")
         with pytest.raises(OutputExistsError, match="already exists"):
             await convert_file_async(sample_text_file, output_path=output)
 
-    async def test_convert_file_async_force_overwrites(self, sample_text_file: Path, tmp_path: Path):
+    async def test_convert_file_async_force_overwrites(
+        self, sample_text_file: Path, tmp_path: Path,
+    ):
         output = tmp_path / "overwritten.md"
         output.write_text("old")
         await convert_file_async(sample_text_file, output_path=output, force=True)
         assert "Hello" in output.read_text()
 
-    async def test_convert_file_async_creates_nested_dir(self, sample_text_file: Path, tmp_path: Path):
+    async def test_convert_file_async_creates_nested_dir(
+        self, sample_text_file: Path, tmp_path: Path,
+    ):
         nested = tmp_path / "a" / "b" / "c.md"
         await convert_file_async(sample_text_file, output_path=nested)
         assert nested.exists()
