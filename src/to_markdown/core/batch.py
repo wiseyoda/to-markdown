@@ -1,5 +1,6 @@
 """Batch processing: file discovery and multi-file conversion loop."""
 
+import asyncio
 import glob as glob_module
 import logging
 from dataclasses import dataclass, field
@@ -10,6 +11,7 @@ from to_markdown.core.constants import (
     EXIT_ERROR,
     EXIT_PARTIAL,
     EXIT_SUCCESS,
+    PARALLEL_LLM_MAX_CONCURRENCY,
 )
 from to_markdown.core.extraction import UnsupportedFormatError
 from to_markdown.core.pipeline import OutputExistsError, convert_file, convert_file_async
@@ -170,36 +172,47 @@ async def convert_batch_async(
     No progress bar (MCP always passes quiet=True).
     """
     result = BatchResult()
+    semaphore = asyncio.Semaphore(PARALLEL_LLM_MAX_CONCURRENCY)
+    should_stop = False
 
-    for file_path in files:
-        out = None
-        if output_dir is not None:
-            out = _resolve_batch_output(file_path, output_dir, batch_root)
+    async def process_file(file_path: Path):
+        nonlocal should_stop
+        if should_stop:
+            return
 
-        try:
-            converted = await convert_file_async(
-                file_path,
-                output_path=out,
-                force=force,
-                clean=clean,
-                summary=summary,
-                images=images,
-                sanitize=sanitize,
-            )
-            result.succeeded.append(converted)
-            logger.info("Converted: %s", file_path.name)
-        except UnsupportedFormatError as exc:
-            result.skipped.append((file_path, str(exc)))
-            logger.debug("Skipped (unsupported): %s", file_path.name)
-        except OutputExistsError as exc:
-            result.skipped.append((file_path, f"Output exists: {exc}"))
-            logger.debug("Skipped (exists): %s", file_path.name)
-        except Exception as exc:
-            result.failed.append((file_path, str(exc)))
-            logger.warning("Failed: %s - %s", file_path.name, exc)
-            if fail_fast:
-                break
+        async with semaphore:
+            if should_stop:
+                return
 
+            out = None
+            if output_dir is not None:
+                out = _resolve_batch_output(file_path, output_dir, batch_root)
+
+            try:
+                converted = await convert_file_async(
+                    file_path,
+                    output_path=out,
+                    force=force,
+                    clean=clean,
+                    summary=summary,
+                    images=images,
+                    sanitize=sanitize,
+                )
+                result.succeeded.append(converted)
+                logger.info("Converted: %s", file_path.name)
+            except UnsupportedFormatError as exc:
+                result.skipped.append((file_path, str(exc)))
+                logger.debug("Skipped (unsupported): %s", file_path.name)
+            except OutputExistsError as exc:
+                result.skipped.append((file_path, f"Output exists: {exc}"))
+                logger.debug("Skipped (exists): %s", file_path.name)
+            except Exception as exc:
+                result.failed.append((file_path, str(exc)))
+                logger.warning("Failed: %s - %s", file_path.name, exc)
+                if fail_fast:
+                    should_stop = True
+
+    await asyncio.gather(*(process_file(f) for f in files))
     return result
 
 

@@ -48,7 +48,7 @@ async def build_content_async(
     Summary runs after clean (depends on cleaned content).
     """
     logger.info("Extracting: %s", input_path.name)
-    result = extract_file(input_path, extract_images=images)
+    result = await asyncio.to_thread(extract_file, input_path, extract_images=images)
 
     content = result.content
     format_type = result.metadata.get("format_type", input_path.suffix.lstrip("."))

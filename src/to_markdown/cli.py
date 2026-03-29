@@ -216,6 +216,7 @@ def main(
             summary=summary,
             images_flag=images,
             no_sanitize=no_sanitize,
+            recursive=not no_recursive,
             store=store,
         )
         return

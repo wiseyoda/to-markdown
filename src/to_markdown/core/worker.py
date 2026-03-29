@@ -97,14 +97,25 @@ def run_worker(task_id: str, store: TaskStore) -> None:
         input_path = args.get("input_path", task.input_path)
 
         if is_batch:
-            from to_markdown.core.batch import convert_batch, discover_files
+            from to_markdown.core.batch import convert_batch, discover_files, resolve_glob
 
             source = Path(input_path)
-            files = discover_files(source)
+            is_glob = args.get("is_glob", False)
+            recursive = args.get("recursive", True)
+
+            if is_glob:
+                files = resolve_glob(input_path)
+                if not files:
+                    raise ValueError(f"No files matched glob pattern: {input_path}")
+                batch_root = None  # No root for globs
+            else:
+                files = discover_files(source, recursive=recursive)
+                batch_root = source
+
             result = convert_batch(
                 files,
                 output_dir=Path(args["output_path"]) if args.get("output_path") else None,
-                batch_root=source,
+                batch_root=batch_root,
                 force=args.get("force", False),
                 clean=args.get("clean", False),
                 summary=args.get("summary", False),
