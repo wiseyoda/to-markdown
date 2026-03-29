@@ -34,22 +34,25 @@ def spawn_worker(task_id: str, store: TaskStore) -> int:
     log_file = store.log_dir / f"{task_id}.log"
     log_fd = log_file.open("w")
 
-    cmd = [sys.executable, "-m", "to_markdown.cli", WORKER_FLAG, task_id]
+    try:
+        cmd = [sys.executable, "-m", "to_markdown.cli", WORKER_FLAG, task_id]
 
-    env = os.environ.copy()
-    env["TO_MARKDOWN_DATA_DIR"] = str(store.db_path.parent)
+        env = os.environ.copy()
+        env["TO_MARKDOWN_DATA_DIR"] = str(store.db_path.parent)
 
-    process = subprocess.Popen(
-        cmd,
-        start_new_session=True,
-        stdout=log_fd,
-        stderr=log_fd,
-        env=env,
-    )
+        process = subprocess.Popen(
+            cmd,
+            start_new_session=True,
+            stdout=log_fd,
+            stderr=log_fd,
+            env=env,
+        )
 
-    store.update(task_id, pid=process.pid)
+        store.update(task_id, pid=process.pid)
 
-    return process.pid
+        return process.pid
+    finally:
+        log_fd.close()
 
 
 def run_worker(task_id: str, store: TaskStore) -> None:
