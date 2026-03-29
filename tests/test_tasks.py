@@ -431,6 +431,38 @@ class TestTaskStoreCheckOrphans:
         orphaned = store.check_orphans()
         assert orphaned >= 1
 
+    def test_marks_stale_pending_without_pid_as_failed(self, store):
+        """Test that pending tasks without PID created > 5m ago are marked failed."""
+        from datetime import UTC, datetime, timedelta
+
+        from to_markdown.core.tasks import TaskStatus
+
+        task = store.create("/path/to/file.pdf")
+        # Manually set created_at to 10 minutes ago
+        stale_time = (datetime.now(UTC) - timedelta(minutes=10)).isoformat()
+        store._conn.execute(
+            "UPDATE tasks SET created_at = ? WHERE id = ?",
+            (stale_time, task.id),
+        )
+        store._conn.commit()
+
+        orphaned = store.check_orphans()
+        assert orphaned >= 1
+        fetched = store.get(task.id)
+        assert fetched.status == TaskStatus.FAILED
+        assert "pending too long" in fetched.error.lower()
+
+    def test_preserves_recent_pending_without_pid(self, store):
+        """Test that recently created pending tasks without PID are preserved."""
+        from to_markdown.core.tasks import TaskStatus
+
+        task = store.create("/path/to/file.pdf")
+        # Created just now, should be preserved
+        orphaned = store.check_orphans()
+        assert orphaned == 0
+        fetched = store.get(task.id)
+        assert fetched.status == TaskStatus.PENDING
+
 
 class TestGetDefaultStore:
     """Tests for get_default_store()."""

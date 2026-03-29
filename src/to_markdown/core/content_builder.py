@@ -37,10 +37,10 @@ def build_content(
 async def build_content_async(
     input_path: Path,
     *,
-    sanitize: bool = True,
     clean: bool = False,
     summary: bool = False,
     images: bool = False,
+    sanitize: bool = True,
 ) -> str:
     """Build markdown content with parallel LLM features.
 

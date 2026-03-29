@@ -42,7 +42,7 @@ def load_dotenv() -> None:
         pass
 
 
-def validate_api_key(summary: bool, images: bool) -> None:
+def require_api_key(summary: bool, images: bool) -> None:
     """Validate GEMINI_API_KEY is set when smart features are requested.
 
     Only validates for --summary and --images. Clean auto-disables when LLM

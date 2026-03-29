@@ -76,7 +76,12 @@ def _chunk_content(content: str, max_chars: int) -> list[str]:
 
 def _build_clean_prompt(chunk: str, format_type: str) -> str:
     """Format the clean prompt template with document context."""
-    return CLEAN_PROMPT.format(format_type=format_type, content=chunk)
+    # Split the prompt into prefix (with format_type) and content (raw chunk)
+    # to avoid str.format() parsing curly braces in the content.
+    parts = CLEAN_PROMPT.split("{content}")
+    prefix = parts[0].format(format_type=format_type)
+    suffix = parts[1] if len(parts) > 1 else ""
+    return f"{prefix}{chunk}{suffix}"
 
 
 async def _clean_single_chunk_async(

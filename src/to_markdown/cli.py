@@ -12,7 +12,7 @@ from to_markdown.core.cli_helpers import (
     configure_logging,
     get_store,
     load_dotenv,
-    validate_api_key,
+    require_api_key,
 )
 from to_markdown.core.constants import (
     APP_NAME,
@@ -207,7 +207,7 @@ def main(
             handle_cancel(cancel, store)
             return
 
-        validate_api_key(summary, images)
+        require_api_key(summary, images)
         handle_background(
             input_path,
             output,
@@ -222,7 +222,7 @@ def main(
         return
 
     # Standard conversion mode
-    validate_api_key(summary, images)
+    require_api_key(summary, images)
 
     resolved = Path(input_path)
 

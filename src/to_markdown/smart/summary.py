@@ -27,7 +27,11 @@ def summarize_content(content: str, format_type: str) -> str | None:
         logger.info("Skipping summary: empty content")
         return None
 
-    prompt = SUMMARY_PROMPT.format(content=content)
+    # Use concatenation to avoid str.format() parsing curly braces in the content
+    parts = SUMMARY_PROMPT.split("{content}")
+    prefix = parts[0]
+    suffix = parts[1] if len(parts) > 1 else ""
+    prompt = f"{prefix}{content}{suffix}"
 
     try:
         return generate(
@@ -66,7 +70,11 @@ async def summarize_content_async(content: str, format_type: str) -> str | None:
         logger.info("Skipping summary: empty content")
         return None
 
-    prompt = SUMMARY_PROMPT.format(content=content)
+    # Use concatenation to avoid str.format() parsing curly braces in the content
+    parts = SUMMARY_PROMPT.split("{content}")
+    prefix = parts[0]
+    suffix = parts[1] if len(parts) > 1 else ""
+    prompt = f"{prefix}{content}{suffix}"
 
     try:
         return await generate_async(
