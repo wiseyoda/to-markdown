@@ -36,7 +36,6 @@ dev = [
 
 [project.scripts]
 to-markdown = "to_markdown.cli:app"
-to-markdown-mcp = "to_markdown.mcp.server:run_server"
 
 [build-system]
 requires = ["hatchling"]

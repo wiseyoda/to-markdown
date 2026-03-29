@@ -63,7 +63,16 @@ def convert_file(
     )
 
     resolved_output.parent.mkdir(parents=True, exist_ok=True)
-    resolved_output.write_text(markdown, encoding="utf-8")
+    if force:
+        resolved_output.write_text(markdown, encoding="utf-8")
+    else:
+        try:
+            with open(resolved_output, "x", encoding="utf-8") as f:
+                f.write(markdown)
+        except FileExistsError as exc:
+            msg = f"Output file already exists: {resolved_output} (use --force to overwrite)"
+            raise OutputExistsError(msg) from exc
+
     logger.info("Wrote: %s", resolved_output)
 
     return resolved_output
@@ -146,7 +155,16 @@ async def convert_file_async(
     )
 
     resolved_output.parent.mkdir(parents=True, exist_ok=True)
-    resolved_output.write_text(markdown, encoding="utf-8")
+    if force:
+        resolved_output.write_text(markdown, encoding="utf-8")
+    else:
+        try:
+            with open(resolved_output, "x", encoding="utf-8") as f:
+                f.write(markdown)
+        except FileExistsError as exc:
+            msg = f"Output file already exists: {resolved_output} (use --force to overwrite)"
+            raise OutputExistsError(msg) from exc
+
     logger.info("Wrote: %s", resolved_output)
 
     return resolved_output

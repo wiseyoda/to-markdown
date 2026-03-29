@@ -29,7 +29,7 @@ def detect_existing_config(project_dir: Path) -> dict:
         return result
 
     result["has_env"] = True
-    for line in env_path.read_text().splitlines():
+    for line in env_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line.startswith(f"{GEMINI_API_KEY_ENV}="):
             value = line.split("=", 1)[1].strip()
@@ -48,7 +48,7 @@ def write_env_file(project_dir: Path, api_key: str) -> None:
     key_written = False
 
     if env_path.exists():
-        for line in env_path.read_text().splitlines():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
             if line.strip().startswith(f"{GEMINI_API_KEY_ENV}="):
                 lines.append(f"{GEMINI_API_KEY_ENV}={api_key}")
                 key_written = True
@@ -58,7 +58,7 @@ def write_env_file(project_dir: Path, api_key: str) -> None:
     if not key_written:
         lines.append(f"{GEMINI_API_KEY_ENV}={api_key}")
 
-    env_path.write_text("\n".join(lines) + "\n")
+    env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def _check_llm_available() -> bool:
