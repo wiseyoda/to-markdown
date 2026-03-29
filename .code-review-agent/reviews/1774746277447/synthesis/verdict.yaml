@@ -1,0 +1,263 @@
+verdict:
+  new_findings:
+    - category: "code-quality"
+      severity: "high"
+      title: "TOCTOU race condition in file conversion output"
+      description: >
+        The `convert_file` and `convert_file_async` functions check if the output
+        file exists, then proceed to execute a potentially long-running LLM
+        operation via `build_content()`. After the generation completes, it
+        blindly truncates and overwrites the file using `write_text()`. If another
+        process creates or modifies the file during this window, its contents will
+        be silently destroyed even if `--force` is false.
+      why: >
+        This can lead to silent data loss if an output file is created or modified
+        by another process (or another concurrent conversion task) during the long
+        LLM generation window. The initial `exists()` check is inadequate to
+        prevent overwriting.
+      file: "src/to_markdown/core/pipeline.py"
+      line: 53
+      confidence: 82
+      suggestedFix: >
+        Use exclusive file creation mode (`"x"`) when not forcing an overwrite.
+        Because `write_text` does not support exclusive mode directly in standard
+        library Pathlib, you can use `open(..., "x")`:
+
+        ```python
+        if force:
+            resolved_output.write_text(markdown, encoding="utf-8")
+        else:
+            try:
+                with open(resolved_output, "x", encoding="utf-8") as f:
+                    f.write(markdown)
+            except FileExistsError:
+                raise OutputExistsError(f"Output file already exists: {resolved_output} (use --force to overwrite)")
+        ```
+      codeSnippet: |
+        if resolved_output.exists() and not force:
+            msg = f"Output file already exists: {resolved_output} (use --force to overwrite)"
+            raise OutputExistsError(msg)
+
+        markdown = build_content(...)
+        resolved_output.write_text(markdown, encoding="utf-8")
+      reasoning: "Verified TOCTOU gap between exists() check at line 53 and write_text() at line 66 with long-running build_content() in between. Confidence lowered from 100 to 82: real correctness issue but low practical exploitability in a single-user CLI tool."
+
+    - category: "code-quality"
+      severity: "medium"
+      title: "Missing encoding in file I/O causes corruption on Windows"
+      description: >
+        The `write_env_file` function reads and writes the `.env` file using
+        `read_text()` and `write_text()` without specifying the `encoding`. On
+        Windows, this defaults to the system locale encoding (e.g., cp1252). If
+        the user has an existing `.env` file with UTF-8 characters (like emojis or
+        special characters in passwords), they will be corrupted or reading will
+        crash. A similar issue exists in `worker.py` when opening log files
+        without specifying encoding.
+      why: >
+        It causes `UnicodeDecodeError` crashes or silently corrupts existing
+        environment variable values (like passwords or tokens containing special
+        characters) on Windows machines.
+      file: "src/to_markdown/core/setup.py"
+      line: 51
+      confidence: 92
+      suggestedFix: >
+        Explicitly pass `encoding="utf-8"` to all `read_text()` and `write_text()`
+        calls.
+
+        ```python
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            # ...
+        env_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        ```
+      codeSnippet: |
+        for line in env_path.read_text().splitlines():
+            ...
+        env_path.write_text("\n".join(lines) + "\n")
+      reasoning: "Verified: setup.py:51 read_text() and :61 write_text() both lack encoding parameter. The rest of the codebase (e.g., pipeline.py:66) consistently uses encoding='utf-8'. Confidence lowered from 100 to 92 since the project is macOS-focused, reducing practical impact."
+
+    - category: "code-quality"
+      severity: "medium"
+      title: "Swallowed exception traceback for unexpected errors"
+      description: >
+        The top-level `main` command catches `Exception`, logs an error using
+        `logger.error()`, and then raises `typer.Exit(EXIT_ERROR) from exc`.
+        Because Typer catches `typer.Exit` and calls `sys.exit()`, the exception
+        traceback is never printed to stderr, leaving users with just the error
+        string and no context for debugging.
+      why: >
+        When an unexpected crash occurs in production, there will be no stack
+        trace or root cause information available to diagnose the problem, making
+        debugging extremely difficult.
+      file: "src/to_markdown/cli.py"
+      line: 270
+      confidence: 92
+      suggestedFix: >
+        Use `logger.exception()` instead of `logger.error()` to print the full
+        stack trace to stderr before exiting.
+
+        ```python
+        except Exception as exc:
+            logger.exception("Unexpected error: %s", exc)
+            raise typer.Exit(EXIT_ERROR) from exc
+        ```
+      codeSnippet: |
+        except Exception as exc:
+            logger.error("Unexpected error: %s", exc)
+            raise typer.Exit(EXIT_ERROR) from exc
+      reasoning: "Verified at cli.py:270: logger.error swallows the traceback. The fix is a one-word change (error -> exception) with clear debugging benefit. Confidence lowered slightly from 100 to 92."
+
+    - category: "testing"
+      severity: "medium"
+      title: "Dead mocks in CLI smart flag tests patch sync functions instead of async"
+      description: >
+        Three tests in TestSmartFlags (test_clean_flag_accepted at line 141,
+        test_summary_flag_accepted at line 149, test_short_flags_accepted at line
+        162) patch the sync versions of smart functions
+        (to_markdown.smart.clean.clean_content,
+        to_markdown.smart.summary.summarize_content) but the pipeline exclusively
+        calls their async counterparts (clean_content_async,
+        summarize_content_async) via build_content_async in content_builder.py.
+        The mocks are completely inert and have zero effect on test execution. The
+        tests pass because LLM calls fail gracefully with the fake API key
+        ("test-key") — the LLMError is caught by the async smart functions which
+        fall back to original content or return None.
+      why: >
+        These tests create a false sense that smart feature integration is
+        controlled by the mock setup. A developer modifying LLM error handling
+        (e.g., making clean_content_async propagate errors instead of catching
+        them) would see these tests fail for reasons unrelated to the declared
+        mock. Additionally, when google-genai is installed, these tests silently
+        make real HTTP calls to the Gemini API, making them network-dependent and
+        non-deterministic in environments with connectivity issues.
+      file: "tests/test_cli.py"
+      line: 141
+      confidence: 88
+      suggestedFix: >
+        Patch the async functions that the pipeline actually calls, or patch at
+        the pipeline level to avoid network calls entirely:
+
+        def test_clean_flag_accepted(self, sample_text_file: Path):
+            with (
+                patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+                patch("to_markdown.smart.clean.clean_content_async",
+                      new_callable=AsyncMock, return_value="cleaned"),
+            ):
+                result = runner.invoke(app, [str(sample_text_file), "--clean"])
+                assert result.exit_code == EXIT_SUCCESS
+      codeSnippet: |
+        def test_clean_flag_accepted(self, sample_text_file: Path):
+            with (
+                patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}),
+                patch("to_markdown.smart.clean.clean_content", return_value="cleaned"),
+            ):
+                result = runner.invoke(app, [str(sample_text_file), "--clean"])
+                assert result.exit_code == EXIT_SUCCESS
+      reasoning: "Verified: test_cli.py:144 patches clean_content (sync) but pipeline calls clean_content_async. Same pattern at lines 152 and 165. Mocks are inert — tests pass due to graceful LLM error handling, not mock control. Confidence kept at 88 as stated."
+
+    - category: "documentation"
+      severity: "medium"
+      title: "Align INSTALL.md Python requirement with supported 3.13 fallback"
+      description: >
+        INSTALL.md states that the installer "Installs Python 3.14+" at line 58,
+        which tells first-time users that 3.14 is the minimum supported runtime.
+        That no longer matches the code: pyproject.toml declares `requires-python
+        = ">=3.13"` at line 6, and both installer scripts fall back to installing
+        Python 3.13 when 3.14 is unavailable.
+      why: >
+        This is a public installation-path contradiction. Developers on systems
+        where 3.14 is unavailable can incorrectly conclude that to-markdown is not
+        installable or supported, even though the package and installers accept
+        3.13. That creates avoidable setup failures and unnecessary support churn.
+      file: "INSTALL.md"
+      line: 58
+      confidence: 95
+      suggestedFix: >
+        Update INSTALL.md to describe the actual compatibility contract, for
+        example: "Installs Python 3.13+ via uv if not already available (prefers
+        3.14 when available)." The troubleshooting section and sample terminal
+        output should use the same wording so the installer behavior, package
+        metadata, and docs stay consistent.
+      codeSnippet: |
+        2. **Installs Python 3.14+** via uv if not already available
+      reasoning: "Verified: INSTALL.md:58 says '3.14+' but pyproject.toml requires '>=3.13'. Clear factual inconsistency introduced when Python minimum was lowered. Confidence kept at 95."
+
+    - category: "dependencies"
+      severity: "medium"
+      title: "Remove the unconditional MCP console script from the base install"
+      description: >
+        `pyproject.toml` publishes `to-markdown-mcp =
+        "to_markdown.mcp.server:run_server"` at line 39, but the base dependency
+        set at lines 8-13 only installs `kreuzberg`, `typer`, `pyyaml`, and
+        `rich`. Importing that entry point immediately loads
+        `src/to_markdown/mcp/server.py`, which imports `mcp.server.fastmcp` and
+        `pydantic.Field` at lines 6-8.
+      why: >
+        A plain `pip install to-markdown` produces an installed executable that
+        can fail with `ModuleNotFoundError` before the server starts. That leaves
+        the published package with a broken runtime surface unless consumers
+        already know to reinstall with the optional MCP dependencies.
+      file: "pyproject.toml"
+      line: 39
+      confidence: 92
+      suggestedFix: >
+        Either remove `to-markdown-mcp` from `[project.scripts]` and keep MCP
+        startup behind the documented `python -m to_markdown.mcp` / `uv run
+        --extra mcp ...` flow, or promote the MCP runtime stack into the base
+        dependencies so the published console script is always installable.
+      codeSnippet: |
+        [project.scripts]
+        to-markdown = "to_markdown.cli:app"
+        to-markdown-mcp = "to_markdown.mcp.server:run_server"
+      reasoning: "Verified: pyproject.toml:39 registers to-markdown-mcp as a console script, but mcp is an optional extra. Base install will produce a broken executable. Confidence lowered slightly from 97 to 92."
+
+    - category: "style"
+      severity: "low"
+      title: "Missing type hints for 'store' parameter and return types"
+      description: >
+        Functions in src/to_markdown/core/background.py (like run_maintenance,
+        handle_status, handle_cancel, etc.) and
+        src/to_markdown/core/cli_helpers.py do not include type hints for the
+        `store` parameter or the return type of `get_store()`. This deviates from
+        the established convention across the rest of the codebase (e.g.,
+        core/pipeline.py, smart/llm.py) where complete function signatures with
+        types are consistently used.
+      why: >
+        A developer reading this code will not know the expected type of the
+        `store` object without tracing the execution flow, reducing the benefits
+        of type hinting. This inconsistency creates friction when navigating the
+        code and breaks IDE autocompletion for the TaskStore methods.
+      file: "src/to_markdown/core/background.py"
+      line: 35
+      confidence: 78
+      suggestedFix: >
+        Import the appropriate type conditionally using TYPE_CHECKING (to avoid
+        circular imports) and add type annotations to the function signatures:
+
+        from typing import TYPE_CHECKING
+        if TYPE_CHECKING:
+            from to_markdown.core.tasks import TaskStore
+
+        def run_maintenance(store: "TaskStore") -> None:
+      codeSnippet: |
+        def run_maintenance(store) -> None:
+            """Run orphan check and cleanup on the task store."""
+      reasoning: "Verified: background.py:35 and :41 have untyped store parameter. Severity lowered from medium to low and confidence from 95 to 78 — this is a style consistency issue, not a correctness or safety concern."
+
+  confirmed: []
+
+  fixed: []
+
+  merged: []
+
+  noise: []
+
+  recurring: []
+
+  summary:
+    total_raw: 7
+    genuinely_new: 7
+    confirmed: 0
+    fixed: 0
+    merged_groups: 0
+    noise_removed: 0
+    recurring: 0
