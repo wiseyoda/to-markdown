@@ -79,7 +79,7 @@ The install script automatically:
   OK All dependencies installed
 
 [5/7] Validating installation
-  OK to-markdown 0.1.0
+  OK to-markdown 1.0.0
 
 [6/7] Setting up shell alias
   OK Added alias to /Users/you/.zshrc

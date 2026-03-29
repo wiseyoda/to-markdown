@@ -113,10 +113,17 @@ def run_worker(task_id: str, store: TaskStore) -> None:
                 quiet=True,
             )
             output_str = f"{len(result.succeeded)} succeeded, {len(result.failed)} failed"
+            status = TASK_STATUS_COMPLETED
+            error = None
+            if result.failed:
+                status = TASK_STATUS_FAILED
+                error = "\n".join([f"{path.name}: {err}" for path, err in result.failed])
+
             store.update(
                 task_id,
-                status=TASK_STATUS_COMPLETED,
+                status=status,
                 output_path=output_str,
+                error=error,
                 completed_at=_now_iso(),
             )
         else:
