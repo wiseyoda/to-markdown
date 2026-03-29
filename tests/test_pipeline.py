@@ -668,7 +668,9 @@ class TestAsyncPipelineWrappers:
             await convert_file_async(missing)
 
     async def test_convert_file_async_overwrite_protection(
-        self, sample_text_file: Path, tmp_path: Path,
+        self,
+        sample_text_file: Path,
+        tmp_path: Path,
     ):
         output = tmp_path / "exists.md"
         output.write_text("already here")
@@ -676,7 +678,9 @@ class TestAsyncPipelineWrappers:
             await convert_file_async(sample_text_file, output_path=output)
 
     async def test_convert_file_async_force_overwrites(
-        self, sample_text_file: Path, tmp_path: Path,
+        self,
+        sample_text_file: Path,
+        tmp_path: Path,
     ):
         output = tmp_path / "overwritten.md"
         output.write_text("old")
@@ -684,7 +688,9 @@ class TestAsyncPipelineWrappers:
         assert "Hello" in output.read_text()
 
     async def test_convert_file_async_creates_nested_dir(
-        self, sample_text_file: Path, tmp_path: Path,
+        self,
+        sample_text_file: Path,
+        tmp_path: Path,
     ):
         nested = tmp_path / "a" / "b" / "c.md"
         await convert_file_async(sample_text_file, output_path=nested)
@@ -707,18 +713,10 @@ class TestAsyncPipelineWrappers:
         with patch("to_markdown.core.pipeline.build_content_async", mock_build):
             # Test convert_to_string_async flags
             await convert_to_string_async(
-                sample_text_file,
-                clean=True,
-                summary=True,
-                images=True,
-                sanitize=False
+                sample_text_file, clean=True, summary=True, images=True, sanitize=False
             )
             mock_build.assert_called_with(
-                sample_text_file.resolve(),
-                clean=True,
-                summary=True,
-                images=True,
-                sanitize=False
+                sample_text_file.resolve(), clean=True, summary=True, images=True, sanitize=False
             )
 
             # Test convert_file_async flags
@@ -730,12 +728,8 @@ class TestAsyncPipelineWrappers:
                 clean=True,
                 summary=True,
                 images=True,
-                sanitize=False
+                sanitize=False,
             )
             mock_build.assert_called_with(
-                sample_text_file.resolve(),
-                clean=True,
-                summary=True,
-                images=True,
-                sanitize=False
+                sample_text_file.resolve(), clean=True, summary=True, images=True, sanitize=False
             )
