@@ -1,0 +1,111 @@
+findings:
+  - category: "performance"
+    severity: "medium"
+    title: "sanitize_content uses Python-level character loop instead of str.translate()"
+    description: >
+      The sanitize_content function in src/to_markdown/core/sanitize.py iterates
+      over every character in the extracted content using a Python for-loop (line 47),
+      checks membership in a frozenset, and appends surviving characters to a list
+      before joining them. This runs on every single file conversion (hot path).
+      Python's built-in str.translate() performs the same character-deletion operation
+      entirely in C, typically 5-10x faster for large strings.
+    why: >
+      For documents with large extracted text (500KB-10MB, common for book PDFs,
+      large spreadsheets, or long HTML pages), the character-by-character Python loop
+      takes 100-500ms+ while str.translate() completes in under 20ms. Without LLM
+      features enabled, sanitization becomes a significant fraction of total
+      conversion time since Kreuzberg extraction is fast for simple formats.
+    file: "src/to_markdown/core/sanitize.py"
+    line: 47
+    confidence: 85
+    suggestedFix: >
+      Build a translation table at module level and use str.translate():
+
+      _REMOVE_TABLE = str.maketrans('', '', ''.join(_ALL_INVISIBLE_CHARS))
+
+      def sanitize_content(content: str) -> SanitizeResult:
+          if not content:
+              return SanitizeResult(content=content, chars_removed=0, was_modified=False)
+          cleaned = content.translate(_REMOVE_TABLE)
+          removed_count = len(content) - len(cleaned)
+          if removed_count > 0:
+              logger.info("Sanitized: removed %d non-visible characters", removed_count)
+          return SanitizeResult(
+              content=cleaned,
+              chars_removed=removed_count,
+              was_modified=removed_count > 0,
+          )
+    codeSnippet: >
+      cleaned_chars: list[str] = []
+      removed_count = 0
+
+      for char in content:
+          if char in _ALL_INVISIBLE_CHARS:
+              removed_count += 1
+          else:
+              cleaned_chars.append(char)
+
+      if removed_count > 0:
+          logger.info("Sanitized: removed %d non-visible characters", removed_count)
+
+      cleaned = "".join(cleaned_chars)
+
+  - category: "performance"
+    severity: "low"
+    title: "CLI batch conversion processes files sequentially despite async pipeline"
+    description: >
+      The CLI batch path in convert_batch() at src/to_markdown/core/batch.py
+      line 123 iterates over files sequentially, calling convert_file() for each
+      one. Each convert_file() call creates its own asyncio event loop via
+      build_content() -> asyncio.run() at src/to_markdown/core/content_builder.py
+      line 26. When LLM features are enabled (clean, summary, images), the
+      network-bound API calls for each file cannot overlap with those of other
+      files. The async version convert_batch_async() (line 156) correctly uses
+      asyncio.gather() with a semaphore for inter-file concurrency, but it is
+      only used by the MCP server path.
+    why: >
+      For batch conversions with LLM features enabled (the default when an API
+      key is configured, since clean=True by default), converting 20 files takes
+      roughly 20x the per-file LLM latency sequentially. With inter-file
+      parallelism (bounded by the existing semaphore of 5), wall-clock time
+      would drop to approximately 4x the per-file latency — a potential 5x
+      improvement for network-bound workloads.
+    file: "src/to_markdown/core/batch.py"
+    line: 123
+    confidence: 75
+    suggestedFix: >
+      Refactor convert_batch() to use a single asyncio.run() boundary wrapping
+      convert_batch_async(), rather than N separate event loops:
+
+      def convert_batch(files, output_dir=None, *, batch_root=None, force=False,
+                        clean=False, summary=False, images=False, sanitize=True,
+                        fail_fast=False, quiet=False) -> BatchResult:
+          result = asyncio.run(convert_batch_async(
+              files, output_dir, batch_root=batch_root, force=force,
+              clean=clean, summary=summary, images=images, sanitize=sanitize,
+              fail_fast=fail_fast,
+          ))
+          return result
+
+      The progress bar would need to be adapted for async (e.g., a callback
+      or periodic update), which adds complexity. Alternatively, only use
+      parallel processing when LLM features are enabled and fall back to
+      sequential for extraction-only runs.
+    codeSnippet: >
+      for file_path in files:
+          update_fn(file_path.name)
+          out = None
+          if output_dir is not None:
+              out = _resolve_batch_output(file_path, output_dir, batch_root)
+
+          try:
+              converted = convert_file(
+                  file_path,
+                  output_path=out,
+                  force=force,
+                  clean=clean,
+                  summary=summary,
+                  images=images,
+                  sanitize=sanitize,
+              )
+              result.succeeded.append(converted)
