@@ -10,7 +10,9 @@ from to_markdown.core.content_builder import build_content_async
 from to_markdown.core.pipeline import (
     OutputExistsError,
     convert_file,
+    convert_file_async,
     convert_to_string,
+    convert_to_string_async,
 )
 
 
@@ -649,3 +651,85 @@ class TestAsyncPipeline:
             result = convert_to_string(test_file, clean=False)
             mock_clean.assert_not_called()
             assert "Original content" in result
+
+
+class TestAsyncPipelineWrappers:
+    """Focused async tests for the pipeline wrappers used by MCP (T018)."""
+
+    async def test_convert_file_async_creates_file(self, sample_text_file: Path, tmp_path: Path):
+        output = tmp_path / "async_output.md"
+        result = await convert_file_async(sample_text_file, output_path=output)
+        assert result.exists()
+        assert "Hello" in result.read_text()
+
+    async def test_convert_file_async_missing_input(self, tmp_path: Path):
+        missing = tmp_path / "nonexistent.txt"
+        with pytest.raises(FileNotFoundError):
+            await convert_file_async(missing)
+
+    async def test_convert_file_async_overwrite_protection(
+        self,
+        sample_text_file: Path,
+        tmp_path: Path,
+    ):
+        output = tmp_path / "exists.md"
+        output.write_text("already here")
+        with pytest.raises(OutputExistsError, match="already exists"):
+            await convert_file_async(sample_text_file, output_path=output)
+
+    async def test_convert_file_async_force_overwrites(
+        self,
+        sample_text_file: Path,
+        tmp_path: Path,
+    ):
+        output = tmp_path / "overwritten.md"
+        output.write_text("old")
+        await convert_file_async(sample_text_file, output_path=output, force=True)
+        assert "Hello" in output.read_text()
+
+    async def test_convert_file_async_creates_nested_dir(
+        self,
+        sample_text_file: Path,
+        tmp_path: Path,
+    ):
+        nested = tmp_path / "a" / "b" / "c.md"
+        await convert_file_async(sample_text_file, output_path=nested)
+        assert nested.exists()
+
+    async def test_convert_to_string_async_returns_content(self, sample_text_file: Path):
+        result = await convert_to_string_async(sample_text_file)
+        assert isinstance(result, str)
+        assert "Hello" in result
+        assert result.startswith("---")
+
+    async def test_convert_to_string_async_missing_input(self, tmp_path: Path):
+        missing = tmp_path / "nonexistent.txt"
+        with pytest.raises(FileNotFoundError):
+            await convert_to_string_async(missing)
+
+    async def test_async_wrappers_parity_with_sync(self, sample_text_file: Path, tmp_path: Path):
+        """Ensure async wrappers pass all flags down to build_content_async."""
+        mock_build = AsyncMock(return_value="mocked")
+        with patch("to_markdown.core.pipeline.build_content_async", mock_build):
+            # Test convert_to_string_async flags
+            await convert_to_string_async(
+                sample_text_file, clean=True, summary=True, images=True, sanitize=False
+            )
+            mock_build.assert_called_with(
+                sample_text_file.resolve(), clean=True, summary=True, images=True, sanitize=False
+            )
+
+            # Test convert_file_async flags
+            mock_build.reset_mock()
+            output = tmp_path / "parity.md"
+            await convert_file_async(
+                sample_text_file,
+                output_path=output,
+                clean=True,
+                summary=True,
+                images=True,
+                sanitize=False,
+            )
+            mock_build.assert_called_with(
+                sample_text_file.resolve(), clean=True, summary=True, images=True, sanitize=False
+            )
