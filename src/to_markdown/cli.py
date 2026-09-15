@@ -154,6 +154,7 @@ def main(
 
     Accepts a single file, a directory (converts all supported files), or a glob
     pattern (e.g., "docs/*.pdf"). Directories are scanned recursively by default.
+    Conflicting batch output paths are rejected before conversion, even with --force.
     """
     configure_logging(verbose, quiet)
     load_dotenv()
@@ -173,8 +174,8 @@ def main(
             run_setup()
         raise typer.Exit(EXIT_SUCCESS)
 
-    # input_path is required for all other modes
-    if input_path is None:
+    # Only conversion modes require an input path.
+    if input_path is None and _worker is None and status is None and cancel is None:
         logger.error("Missing required argument: INPUT_PATH")
         raise typer.Exit(EXIT_ERROR)
 

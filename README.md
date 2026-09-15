@@ -162,3 +162,45 @@ uv run pytest --cov=to_markdown --cov-fail-under=80  # Coverage
 ## License
 
 [MIT](LICENSE)
+
+## Conversion safety and review-fix smoke checks
+
+CLI worker/status/cancel modes do not require a positional input. MCP batch and
+background tools preserve existing outputs (no implicit `--force`). A batch rejects
+all inputs sharing an output destination (case-insensitively) before writing those files, including with
+`--force`; unrelated inputs may still succeed. Rename conflicting sources or convert
+them individually with distinct `-o` paths. This applies to adjacent and custom output
+directories. Failures are reported, not counted as successes.
+
+MCP `convert_file` results over 80,000 characters include an absolute path to a newly
+written, complete, uniquely named hidden `.md` artifact beside the source. Source and
+existing output files remain untouched. The artifact persists until you remove it;
+creation requires write access to that directory. Short responses create no artifact.
+
+To verify locally without Gemini or private documents:
+
+```bash
+uv sync --extra dev --extra llm --extra mcp
+uv run pytest tests/test_review_regressions.py -v
+```
+
+These checks launch the actual CLI worker and MCP stdio server with isolated task
+storage. They verify terminal task status, status/cancel without dummy inputs,
+byte-preserved Markdown, explicit same-stem collision failures (including `--force`),
+and retrievable complete oversized artifacts. For a manual smoke check, create two
+synthetic documents in a temporary directory:
+
+```bash
+trial_dir=$(mktemp -d)
+export TO_MARKDOWN_DATA_DIR="$trial_dir/.tasks"
+printf '<h1>Worker smoke</h1><p>Body retained.</p>' > "$trial_dir/worker.html"
+printf 'Plain document body.\n' > "$trial_dir/plain.txt"
+uv run to-markdown "$trial_dir/plain.txt" --no-clean
+uv run to-markdown "$trial_dir/worker.html" --background --no-clean
+uv run to-markdown --status all
+cat "$trial_dir/plain.md" "$trial_dir/worker.md"
+```
+
+Wait for `completed` (repeat status if still pending/running); both outputs should
+contain their original bodies and YAML metadata. These offline checks do not verify
+live Gemini or external OCR services.

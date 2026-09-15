@@ -215,6 +215,11 @@ Defined in `core/constants.py`. Every CLI exit must use these:
 
 When the output .md file already exists, the tool must error by default. Overwriting
 requires an explicit `--force` flag. This prevents accidental data loss.
+MCP batch/background handlers do not force overwrites. Shared batch destination
+preflight (`core/batch_paths.py`) rejects same-destination inputs before conversion,
+including when force is requested. Oversized MCP string results are persisted in
+exclusive unique hidden Markdown artifacts beside the source before advertising a
+retrieval path; callers own artifact cleanup.
 
 ### CLI Flags (Standard)
 

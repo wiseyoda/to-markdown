@@ -49,7 +49,8 @@ async def convert_file(
 
     Extracts text from documents (PDF, DOCX, XLSX, PPTX, HTML, images, and more)
     and produces clean Markdown with metadata frontmatter. Returns the markdown
-    content directly.
+    content directly. Oversized results are saved in a unique hidden Markdown file
+    beside the source; the response includes its absolute path. Remove it when done.
     """
     try:
         return await handle_convert_file(
@@ -91,7 +92,8 @@ async def convert_batch(
     """Convert all supported files in a directory to Markdown.
 
     Recursively discovers and converts files, skipping hidden files and unsupported
-    formats. Returns a structured summary with per-file results.
+    formats. Existing outputs are preserved; conflicting output paths are reported
+    as failures before conversion. Returns a structured summary with per-file results.
     """
     try:
         return await handle_convert_batch(
@@ -153,6 +155,8 @@ def start_conversion(
     ] = True,
 ) -> str:
     """Start a background file conversion and return a task ID immediately.
+
+    Existing output files are preserved, never silently overwritten.
 
     Use this for large files or batch conversions that may take a while.
     Poll with get_task_status to check progress.

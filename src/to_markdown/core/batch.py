@@ -6,8 +6,8 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from to_markdown.core.batch_paths import plan_batch_outputs
 from to_markdown.core.constants import (
-    DEFAULT_OUTPUT_EXTENSION,
     EXIT_ERROR,
     EXIT_PARTIAL,
     EXIT_SUCCESS,
@@ -71,21 +71,6 @@ def resolve_glob(pattern: str) -> list[Path]:
     return sorted(matches)
 
 
-def _resolve_batch_output(
-    input_path: Path,
-    output_dir: Path,
-    batch_root: Path | None,
-) -> Path:
-    """Resolve output path for a file in a batch, preserving directory structure."""
-    if batch_root is not None:
-        try:
-            relative = input_path.parent.relative_to(batch_root)
-            return output_dir / relative / (input_path.stem + DEFAULT_OUTPUT_EXTENSION)
-        except ValueError:
-            pass
-    return output_dir / (input_path.stem + DEFAULT_OUTPUT_EXTENSION)
-
-
 def convert_batch(
     files: list[Path],
     output_dir: Path | None = None,
@@ -117,14 +102,19 @@ def convert_batch(
         BatchResult with succeeded, failed, and skipped lists.
     """
     result = BatchResult()
+    outputs, result.failed = plan_batch_outputs(files, output_dir, batch_root)
+    for source, error in result.failed:
+        logger.warning("Failed: %s - %s", source.name, error)
+    if fail_fast and result.failed:
+        return result
 
     progress_ctx = _make_progress(quiet, len(files))
     with progress_ctx as update_fn:
         for file_path in files:
             update_fn(file_path.name)
-            out = None
-            if output_dir is not None:
-                out = _resolve_batch_output(file_path, output_dir, batch_root)
+            if file_path not in outputs:
+                continue
+            out = outputs[file_path]
 
             try:
                 converted = convert_file(
@@ -172,6 +162,11 @@ async def convert_batch_async(
     No progress bar (MCP always passes quiet=True).
     """
     result = BatchResult()
+    outputs, result.failed = plan_batch_outputs(files, output_dir, batch_root)
+    for source, error in result.failed:
+        logger.warning("Failed: %s - %s", source.name, error)
+    if fail_fast and result.failed:
+        return result
     semaphore = asyncio.Semaphore(PARALLEL_LLM_MAX_CONCURRENCY)
     should_stop = False
 
@@ -184,9 +179,9 @@ async def convert_batch_async(
             if should_stop:
                 return
 
-            out = None
-            if output_dir is not None:
-                out = _resolve_batch_output(file_path, output_dir, batch_root)
+            if file_path not in outputs:
+                return
+            out = outputs[file_path]
 
             try:
                 converted = await convert_file_async(
