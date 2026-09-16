@@ -77,7 +77,7 @@ def handle_start_conversion(
         {
             "input_path": file_path,
             "output_path": None,
-            "force": True,
+            "force": False,
             "clean": clean,
             "summary": summary,
             "images": images,

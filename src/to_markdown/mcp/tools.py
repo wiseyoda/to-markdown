@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 from to_markdown import __version__
@@ -67,11 +68,27 @@ async def handle_convert_file(
 
     # Truncate if content exceeds limit
     if char_count > MAX_MCP_OUTPUT_CHARS:
+        # Exclusive unique artifact: never replace a source or an existing result.
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            prefix=f".{path.stem}-",
+            suffix=".md",
+            dir=path.resolve().parent,
+            delete=False,
+        ) as artifact:
+            artifact_path = Path(artifact.name)
+            try:
+                artifact.write(content)
+                artifact.flush()
+            except BaseException:
+                artifact_path.unlink(missing_ok=True)
+                raise
         truncated = content[:MAX_MCP_OUTPUT_CHARS]
         lines.append(
             f"\n**Note**: Output truncated ({char_count:,} chars exceeds "
             f"{MAX_MCP_OUTPUT_CHARS:,} limit). Full content available at: "
-            f"{path.with_suffix('.md')}"
+            f"{artifact_path}"
         )
         lines.append(f"\n---\n\n{truncated}\n\n[... truncated ...]")
     else:
@@ -114,7 +131,7 @@ async def handle_convert_batch(
     result = await convert_batch_async(
         files,
         batch_root=path.resolve(),
-        force=True,
+        force=False,
         clean=clean,
         summary=summary,
         images=images,
